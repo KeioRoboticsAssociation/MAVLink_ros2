@@ -1,0 +1,34 @@
+# MAVLink Serial Configuration
+mavlink_serial_node:
+  ros__parameters:
+    # Serial port settings
+    serial_port: "/dev/ttyUSB0"
+    baudrate: 115200
+    
+    # MAVLink IDs
+    system_id: 255        # GCS ID
+    component_id: 1       # Component ID
+    target_system_id: 1   # STM32 system ID
+    target_component_id: 1
+    
+    # Update rates (Hz)
+    heartbeat_rate: 1.0
+    telemetry_rate: 10.0
+    
+    # Timeouts (ms)
+    connection_timeout: 5000
+    command_timeout: 1000
+    
+    # Servo configuration
+    servo:
+      count: 3
+      update_rate: 10.0
+      default_pulse_min: 1000
+      default_pulse_max: 2000
+      default_pulse_neutral: 1500
+      
+    # Encoder configuration  
+    encoder:
+      count: 4
+      update_rate: 10.0
+      default_cpr: 1024
