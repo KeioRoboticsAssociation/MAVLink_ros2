@@ -25,6 +25,8 @@ ServoController::ServoController(rclcpp::Node* node) : node_(node) {
 void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& servo_raw) {
     std::lock_guard<std::mutex> lock(servo_mutex_);
     
+    RCLCPP_INFO_ONCE(node_->get_logger(), "First SERVO_OUTPUT_RAW message received from STM32");
+    
     // Update servo states from MAVLink data
     uint16_t servo_values[16] = {
         servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw, servo_raw.servo4_raw,
@@ -36,13 +38,22 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
     for (size_t i = 0; i < 16 && i < servo_states_.size(); i++) {
         servo_states_[i].pulse_us = servo_values[i];
         
-        // Convert pulse to angle (assuming standard servo mapping)
-        if (servo_values[i] > 0) {
+        if (servo_values[i] == 0) {
+            // Explicitly treat 0 as NOT_INITIALIZED
+            servo_states_[i].enabled = false;
+            servo_states_[i].status = 1; // NOT_INITIALIZED status
+            servo_states_[i].current_angle_deg = 0.0f;
+        } else if (servo_values[i] >= 500 && servo_values[i] <= 2500) {
+            // Valid pulse range: set enabled = true and convert to angle
+            servo_states_[i].enabled = true;
+            servo_states_[i].status = 0; // OK status
             float normalized = (servo_values[i] - 1500.0f) / 500.0f;
             servo_states_[i].current_angle_deg = normalized * 90.0f;
-            servo_states_[i].enabled = true;
         } else {
+            // Invalid pulse range: keep disabled
             servo_states_[i].enabled = false;
+            servo_states_[i].status = 2; // ERROR status
+            servo_states_[i].current_angle_deg = 0.0f;
         }
     }
     
@@ -171,19 +182,18 @@ void ServoController::publishServoStates() {
     auto now = node_->now();
     
     for (size_t i = 0; i < servo_states_.size(); i++) {
-        if (servo_states_[i].enabled) {
-            auto msg = stm32_mavlink_interface::msg::ServoState();
-            msg.header.stamp = now;
-            msg.servo_id = i + 1;
-            msg.current_angle_deg = servo_states_[i].current_angle_deg;
-            msg.target_angle_deg = servo_states_[i].target_angle_deg;
-            msg.pulse_us = servo_states_[i].pulse_us;
-            msg.enabled = servo_states_[i].enabled;
-            msg.status = servo_states_[i].status;
-            msg.error_count = 0;
-            
-            servo_state_pub_->publish(msg);
-        }
+        // Always publish all servo states regardless of enabled status
+        auto msg = stm32_mavlink_interface::msg::ServoState();
+        msg.header.stamp = now;
+        msg.servo_id = i + 1;
+        msg.current_angle_deg = servo_states_[i].current_angle_deg;
+        msg.target_angle_deg = servo_states_[i].target_angle_deg;
+        msg.pulse_us = servo_states_[i].pulse_us;
+        msg.enabled = servo_states_[i].enabled;
+        msg.status = servo_states_[i].status;
+        msg.error_count = 0;
+        
+        servo_state_pub_->publish(msg);
     }
 }
 
