@@ -28,6 +28,7 @@ MAVLinkSerialNode::MAVLinkSerialNode()
     // Initialize components
     servo_controller_ = std::make_unique<ServoController>(this);
     encoder_interface_ = std::make_unique<EncoderInterface>(this);
+    robomaster_controller_ = std::make_unique<RobomasterController>(this);
     
     // Create publishers
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("diagnostics", 10);
@@ -174,6 +175,27 @@ void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             handleParamValue(msg);
             break;
             
+        case MAVLINK_MSG_ID_COMMAND_ACK:
+            handleCommandAck(msg);
+            break;
+            
+        // RoboMaster custom messages (IDs 180-183)
+        case 180: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL
+            // This would be handled on TX side
+            break;
+            
+        case 181: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS
+            handleRobomasterStatus(msg);
+            break;
+            
+        case 182: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG
+            // Configuration response
+            break;
+            
+        case 183: // MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY
+            handleRobomasterTelemetry(msg);
+            break;
+            
         default:
             // Unknown message
             break;
@@ -201,11 +223,30 @@ void MAVLinkSerialNode::sendHeartbeat() {
 }
 
 void MAVLinkSerialNode::sendTelemetry() {
-    // Send servo commands if any
     mavlink_message_t msg;
+    
+    // Send servo commands if any
     if (servo_controller_->getRCOverrideMessage(msg, system_id_, component_id_, target_system_id_)) {
         sendMAVLinkMessage(msg);
     }
+    
+    // Send RoboMaster motor commands if any
+    if (robomaster_controller_->getMotorControlMessage(msg, system_id_, component_id_, target_system_id_)) {
+        sendMAVLinkMessage(msg);
+    }
+    
+    // Send RoboMaster motor configuration updates if any
+    if (robomaster_controller_->getMotorConfigMessage(msg, system_id_, component_id_, target_system_id_)) {
+        sendMAVLinkMessage(msg);
+    }
+    
+    // Send RoboMaster parameter requests if any
+    if (robomaster_controller_->getParameterRequestMessage(msg, system_id_, component_id_, target_system_id_)) {
+        sendMAVLinkMessage(msg);
+    }
+    
+    // Update RoboMaster controller
+    robomaster_controller_->update();
     
     publishDiagnostics();
 }
@@ -256,6 +297,9 @@ void MAVLinkSerialNode::handleParamValue(const mavlink_message_t& msg) {
     mavlink_param_value_t param_value;
     mavlink_msg_param_value_decode(&msg, &param_value);
     encoder_interface_->handleParamValue(param_value);
+    
+    // Also forward to RoboMaster controller for motor parameters
+    robomaster_controller_->handleParameterValue(msg);
 }
 
 void MAVLinkSerialNode::handleCommandLong(const mavlink_message_t& msg) {
@@ -269,6 +313,26 @@ void MAVLinkSerialNode::handleCommandLong(const mavlink_message_t& msg) {
                                                    target_system_id_, cmd.param1, cmd.param2, cmd.param3);
         sendMAVLinkMessage(response_msg);
     }
+}
+
+void MAVLinkSerialNode::handleCommandAck(const mavlink_message_t& msg) {
+    mavlink_command_ack_t ack;
+    mavlink_msg_command_ack_decode(&msg, &ack);
+    
+    // Forward to RoboMaster controller
+    robomaster_controller_->handleCommandAck(msg);
+    
+    RCLCPP_DEBUG(this->get_logger(), "Command ACK: command=%d, result=%d", ack.command, ack.result);
+}
+
+void MAVLinkSerialNode::handleRobomasterTelemetry(const mavlink_message_t& msg) {
+    // Forward RoboMaster telemetry to controller
+    robomaster_controller_->handleMotorTelemetry(msg);
+}
+
+void MAVLinkSerialNode::handleRobomasterStatus(const mavlink_message_t& msg) {
+    // Forward RoboMaster status to controller
+    robomaster_controller_->handleMotorStatus(msg);
 }
 
 } // namespace stm32_mavlink_interface

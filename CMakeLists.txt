@@ -21,8 +21,13 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ServoState.msg"
   "msg/EncoderState.msg"
   "msg/EncoderConfig.msg"
+  "msg/RobomasterMotorCommand.msg"
+  "msg/RobomasterMotorState.msg" 
+  "msg/RobomasterMotorConfig.msg"
   "srv/SetServoConfig.srv"
   "srv/SetEncoderConfig.srv"
+  "srv/SetRobomasterMotorConfig.srv"
+  "srv/GetRobomasterMotorConfig.srv"
   DEPENDENCIES std_msgs sensor_msgs
 )
 
@@ -37,6 +42,7 @@ add_executable(mavlink_serial_node
   src/mavlink_serial_node.cpp
   src/servo_controller.cpp
   src/encoder_interface.cpp
+  src/robomaster_controller.cpp
 )
 
 # Link dependencies

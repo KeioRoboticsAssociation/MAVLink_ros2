@@ -16,6 +16,7 @@
 // Component interfaces
 #include "servo_controller.hpp"
 #include "encoder_interface.hpp"
+#include "robomaster_controller.hpp"
 
 namespace stm32_mavlink_interface {
 
@@ -46,6 +47,7 @@ private:
     // Components
     std::unique_ptr<ServoController> servo_controller_;
     std::unique_ptr<EncoderInterface> encoder_interface_;
+    std::unique_ptr<RobomasterController> robomaster_controller_;
     
     // Timers
     rclcpp::TimerBase::SharedPtr heartbeat_timer_;
@@ -77,6 +79,11 @@ private:
     void handleParamValue(const mavlink_message_t& msg);
     void handleServoOutputRaw(const mavlink_message_t& msg);
     void handleAttitude(const mavlink_message_t& msg);
+    void handleCommandAck(const mavlink_message_t& msg);
+    
+    // RoboMaster MAVLink handlers
+    void handleRobomasterTelemetry(const mavlink_message_t& msg);
+    void handleRobomasterStatus(const mavlink_message_t& msg);
 };
 
 } // namespace stm32_mavlink_interface

@@ -25,7 +25,11 @@ ServoController::ServoController(rclcpp::Node* node) : node_(node) {
 void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& servo_raw) {
     std::lock_guard<std::mutex> lock(servo_mutex_);
     
-    RCLCPP_INFO_ONCE(node_->get_logger(), "First SERVO_OUTPUT_RAW message received from STM32");
+    // 受信したことを必ずログ出力
+    RCLCPP_INFO(node_->get_logger(), 
+        "SERVO_OUTPUT_RAW received: time=%llu, port=%d, servo1=%d, servo2=%d, servo3=%d",
+        servo_raw.time_usec, servo_raw.port, 
+        servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw);
     
     // Update servo states from MAVLink data
     uint16_t servo_values[16] = {
@@ -35,29 +39,42 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
         servo_raw.servo13_raw, servo_raw.servo14_raw, servo_raw.servo15_raw, servo_raw.servo16_raw
     };
     
+    // 各サーボの値を処理
     for (size_t i = 0; i < 16 && i < servo_states_.size(); i++) {
+        uint16_t old_pulse = servo_states_[i].pulse_us;
+        bool old_enabled = servo_states_[i].enabled;
+        
         servo_states_[i].pulse_us = servo_values[i];
         
         if (servo_values[i] == 0) {
-            // Explicitly treat 0 as NOT_INITIALIZED
             servo_states_[i].enabled = false;
-            servo_states_[i].status = 1; // NOT_INITIALIZED status
+            servo_states_[i].status = 1; // NOT_INITIALIZED
             servo_states_[i].current_angle_deg = 0.0f;
         } else if (servo_values[i] >= 500 && servo_values[i] <= 2500) {
-            // Valid pulse range: set enabled = true and convert to angle
             servo_states_[i].enabled = true;
-            servo_states_[i].status = 0; // OK status
+            servo_states_[i].status = 0; // OK
             float normalized = (servo_values[i] - 1500.0f) / 500.0f;
             servo_states_[i].current_angle_deg = normalized * 90.0f;
+            servo_states_[i].target_angle_deg = servo_states_[i].current_angle_deg;
         } else {
-            // Invalid pulse range: keep disabled
             servo_states_[i].enabled = false;
-            servo_states_[i].status = 2; // ERROR status
+            servo_states_[i].status = 2; // ERROR
             servo_states_[i].current_angle_deg = 0.0f;
+        }
+        
+        // 状態が変化したらログ出力
+        if (i < 3 && (old_pulse != servo_states_[i].pulse_us || old_enabled != servo_states_[i].enabled)) {
+            RCLCPP_INFO(node_->get_logger(), 
+                "Servo %zu state changed: pulse=%d->%d, enabled=%d->%d, angle=%.1f°",
+                i+1, old_pulse, servo_states_[i].pulse_us, 
+                old_enabled, servo_states_[i].enabled,
+                servo_states_[i].current_angle_deg);
         }
     }
     
+    // 必ずpublish
     publishServoStates();
+    RCLCPP_INFO_ONCE(node_->get_logger(), "Publishing servo states to /servo/states topic");
 }
 
 void ServoController::handleManualControl(const mavlink_manual_control_t& manual) {
