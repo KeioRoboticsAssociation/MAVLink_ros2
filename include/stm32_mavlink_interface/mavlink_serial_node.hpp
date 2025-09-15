@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 // MAVLink headers
-#include "mavlink/c_library_v2/common/mavlink.h"
+#include "mavlink/c_library_v2_robomaster/robomaster/mavlink.h"
 
 // Component interfaces
 #include "servo_controller.hpp"

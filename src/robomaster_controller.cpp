@@ -129,7 +129,37 @@ void RobomasterController::handleMotorTelemetry(const mavlink_message_t& /* msg 
 }
 
 void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
-    // Parse text format: "M5: pos= vel= cur=1851 temp=34 EN OK"
+    // Handle both STATUSTEXT (253) and proper ROBOMASTER_MOTOR_STATUS (181) messages
+    if (msg.msgid == MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS) {
+        // Handle proper MAVLink motor status message
+        mavlink_robomaster_motor_status_t motor_status;
+        mavlink_msg_robomaster_motor_status_decode(&msg, &motor_status);
+
+        std::lock_guard<std::mutex> lock(motors_mutex_);
+        ensureMotorExists(motor_status.motor_id);
+        MotorData& motor = motors_[motor_status.motor_id];
+
+        // Update motor data from MAVLink message
+        motor.current_position = motor_status.current_position;
+        motor.current_velocity = motor_status.current_velocity;
+        motor.current_milliamps = motor_status.current_milliamps;
+        motor.temperature = motor_status.temperature;
+        motor.target_position = motor_status.target_position;
+        motor.target_velocity = motor_status.target_velocity;
+        motor.target_current = motor_status.target_current;
+        motor.control_mode = motor_status.control_mode;
+        motor.enabled = (motor_status.enabled == 1);
+        motor.status = motor_status.status;
+        motor.error_count = motor_status.error_count;
+        motor.timeout_count = motor_status.timeout_count;
+        motor.overheat_count = motor_status.overheat_count;
+        motor.last_update = node_->now();
+
+        publishMotorStates();
+        return;
+    }
+
+    // Fallback: Parse text format from STATUSTEXT: "M5: pos= vel= cur=1851 temp=34 EN OK"
     // MAVLink STATUSTEXT message has severity(1) + text(49)
     if (msg.len < 10) return; // Need minimum message length
 
@@ -374,21 +404,14 @@ void RobomasterController::buildMotorControlMessage(const stm32_mavlink_interfac
     // Use proper MAVLink message building instead of manual construction
     // This ensures correct MAVLink v2 format, sequence numbers, and checksum
 
-    // Build payload for custom message ID 180
-    uint8_t payload[6] = {0};
-    payload[0] = cmd.motor_id;
-    payload[1] = cmd.control_mode;
-    std::memcpy(&payload[2], &control_value, sizeof(float));
-
-    // Use MAVLink's proper message finalization which handles all the checksums correctly
-    msg.msgid = 180;
-    msg.sysid = system_id;
-    msg.compid = component_id;
-    msg.len = sizeof(payload);
-    std::memcpy(msg.payload64, payload, sizeof(payload));
-
-    // Use MAVLink's built-in finalization function for proper checksum
-    mavlink_finalize_message(&msg, system_id, component_id, sizeof(payload), sizeof(payload), 0); // min_len, len, CRC_EXTRA = 0 for custom message
+    // Use proper MAVLink message packing for custom message ID 180 with correct CRC_EXTRA
+    mavlink_msg_robomaster_motor_control_pack(
+        system_id, component_id, &msg,
+        cmd.motor_id,           // motor_id
+        cmd.control_mode,       // control_mode
+        control_value,          // control_value
+        cmd.enabled ? 1 : 0     // enable
+    );
 
     RCLCPP_INFO(node_->get_logger(), "Built motor control message: ID=%d, mode=%d, value=%.3f, enabled=%d",
                  cmd.motor_id, cmd.control_mode, control_value, cmd.enabled);

@@ -184,9 +184,13 @@ void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             handleCommandAck(msg);
             break;
             
-        // RoboMaster custom messages (IDs 180-183) - using raw IDs for compatibility
-        case 180: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL
+        // RoboMaster custom messages - using proper MAVLink definitions
+        case MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL:
             // This would be handled on TX side
+            break;
+
+        case MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS:
+            handleRobomasterStatus(msg);
             break;
 
         case 253: // MAVLINK_MSG_ID_STATUSTEXT - STM32 is using this ID for RoboMaster motor status
@@ -194,11 +198,11 @@ void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             handleRobomasterStatus(msg);
             break;
 
-        case 182: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG
+        case MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG:
             // Configuration response
             break;
 
-        case 183: // MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY
+        case MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY:
             handleRobomasterTelemetry(msg);
             break;
             

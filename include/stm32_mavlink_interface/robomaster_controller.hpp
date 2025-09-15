@@ -10,7 +10,7 @@
 #include "stm32_mavlink_interface/msg/robomaster_motor_config.hpp"
 #include "stm32_mavlink_interface/srv/set_robomaster_motor_config.hpp"
 #include "stm32_mavlink_interface/srv/get_robomaster_motor_config.hpp"
-#include "mavlink/c_library_v2/common/mavlink.h"
+#include "mavlink/c_library_v2_robomaster/robomaster/mavlink.h"
 
 namespace stm32_mavlink_interface {
 
@@ -51,14 +51,30 @@ private:
         // Current state
         stm32_mavlink_interface::msg::RobomasterMotorState state;
         stm32_mavlink_interface::msg::RobomasterMotorConfig config;
-        
+
         // Command tracking
         stm32_mavlink_interface::msg::RobomasterMotorCommand last_command;
         rclcpp::Time last_command_time;
         rclcpp::Time last_telemetry_time;
+        rclcpp::Time last_update;
         bool command_pending = false;
         bool config_pending = false;
         bool online = false;
+
+        // Additional MAVLink fields
+        float current_position = 0.0f;
+        float current_velocity = 0.0f;
+        int16_t current_milliamps = 0;
+        uint8_t temperature = 0;
+        float target_position = 0.0f;
+        float target_velocity = 0.0f;
+        int16_t target_current = 0;
+        uint8_t control_mode = 0;
+        bool enabled = false;
+        uint8_t status = 0;
+        uint16_t error_count = 0;
+        uint16_t timeout_count = 0;
+        uint16_t overheat_count = 0;
     };
     
     std::unordered_map<uint8_t, MotorData> motors_;
@@ -104,13 +120,11 @@ private:
     void configToParameters(uint8_t motor_id, const stm32_mavlink_interface::msg::RobomasterMotorConfig& config);
     void parametersToConfig(uint8_t motor_id, stm32_mavlink_interface::msg::RobomasterMotorConfig& config);
     
-    // Custom MAVLink message IDs (matching the STM32 side)
-    enum CustomMessageIDs {
-        MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL = 180,
-        MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS = 181, 
-        MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG = 182,
-        MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY = 183
-    };
+    // Custom MAVLink message IDs are now defined in the generated library
+    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL = 180
+    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS = 181
+    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG = 182
+    // MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY = 183
 };
 
 } // namespace stm32_mavlink_interface

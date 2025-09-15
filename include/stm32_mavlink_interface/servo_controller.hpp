@@ -7,7 +7,7 @@
 #include "stm32_mavlink_interface/msg/servo_command.hpp"
 #include "stm32_mavlink_interface/msg/servo_state.hpp"
 #include "stm32_mavlink_interface/srv/set_servo_config.hpp"
-#include "mavlink/c_library_v2/common/mavlink.h"
+#include "mavlink/c_library_v2_robomaster/robomaster/mavlink.h"
 
 namespace stm32_mavlink_interface {
 
