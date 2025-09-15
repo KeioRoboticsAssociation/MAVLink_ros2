@@ -2,6 +2,9 @@
 #include <chrono>
 #include <cstring>
 
+// Include RoboMaster message definitions for consistency
+#include "stm32_mavlink_interface/robomaster_controller.hpp"
+
 namespace stm32_mavlink_interface {
 
 MAVLinkSerialNode::MAVLinkSerialNode() 
@@ -179,19 +182,19 @@ void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             handleCommandAck(msg);
             break;
             
-        // RoboMaster custom messages (IDs 180-183)
+        // RoboMaster custom messages (IDs 180-183) - using raw IDs for compatibility
         case 180: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL
             // This would be handled on TX side
             break;
-            
+
         case 181: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS
             handleRobomasterStatus(msg);
             break;
-            
+
         case 182: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG
             // Configuration response
             break;
-            
+
         case 183: // MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY
             handleRobomasterTelemetry(msg);
             break;

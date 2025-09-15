@@ -15,8 +15,8 @@ def generate_launch_description():
     # Declare launch arguments
     serial_port_arg = DeclareLaunchArgument(
         'serial_port',
-        default_value='/dev/ttyACM0',
-        description='Serial port for MAVLink communication'
+        default_value='/dev/ttyUSB0',
+        description='Serial port for MAVLink communication (try /dev/ttyUSB0 or /dev/ttyACM0)'
     )
     
     baudrate_arg = DeclareLaunchArgument(

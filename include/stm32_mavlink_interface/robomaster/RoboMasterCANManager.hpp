@@ -1,6 +1,6 @@
 #pragma once
 
-// #include "stm32f4xx_hal.h" // Replaced for ROS2 compatibility
+#include "stm32f4xx_hal.h"
 #include <cstdint>
 
 // Forward declaration
@@ -70,6 +70,8 @@ public:
     uint32_t getTransmissionErrors() const { return tx_error_count_; }
     uint32_t getReceptionErrors() const { return rx_error_count_; }
     uint32_t getLastTransmissionTime() const { return last_tx_time_; }
+    uint32_t getLastReceptionTime() const { return last_rx_time_; }
+    uint32_t getPendingRxMessages() const;
     
     // Update method (call periodically)
     void update();

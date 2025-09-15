@@ -6,30 +6,32 @@ ROS2 package for communicating with STM32 devices using MAVLink protocol over UA
 
 - MAVLink v2 protocol support
 - Servo motor control (up to 16 servos)
+- RoboMaster motor control (CAN-based GM6020, etc.)
 - Encoder feedback (up to 16 encoders)
-- Configuration management
+- Custom MAVLink message support (IDs 180-183)
+- Configuration management via ROS2 services
 - Diagnostic monitoring
-- Real-time telemetry
+- Real-time telemetry at 10Hz
 
 ## Installation
 
 ### Prerequisites
 
 ```bash
-# Install ROS2 dependencies
+# Install ROS2 dependencies (adjust for your ROS2 distribution)
 sudo apt update
-sudo apt install ros-humble-diagnostic-msgs ros-humble-sensor-msgs
+sudo apt install ros-jazzy-diagnostic-msgs ros-jazzy-sensor-msgs ros-jazzy-geometry-msgs
 
-# Clone MAVLink headers
-cd ~/ros2_ws/src/stm32_mavlink_interface/include
+# Clone MAVLink headers (if not already included)
+cd ~/ros2_jazzy/src/stm32_mavlink_interface/include
 git clone https://github.com/mavlink/c_library_v2.git mavlink
 ```
 
 ### Build
 
 ```bash
-cd ~/ros2_ws
-colcon build --packages-select stm32_mavlink_interface
+cd ~/ros2_jazzy
+colcon build --packages-select stm32_mavlink_interface --symlink-install
 source install/setup.bash
 ```
 
@@ -44,6 +46,12 @@ ros2 launch stm32_mavlink_interface stm32_interface.launch.py
 ### Launch with custom serial port
 
 ```bash
+# For USB-to-Serial devices (most common)
+ros2 launch stm32_mavlink_interface stm32_interface.launch.py \
+    serial_port:=/dev/ttyUSB0 \
+    baudrate:=115200
+
+# For CDC/ACM devices (STM32 with USB CDC)
 ros2 launch stm32_mavlink_interface stm32_interface.launch.py \
     serial_port:=/dev/ttyACM0 \
     baudrate:=115200

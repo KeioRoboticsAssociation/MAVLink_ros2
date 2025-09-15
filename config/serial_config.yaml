@@ -1,7 +1,7 @@
 # MAVLink Serial Configuration
 mavlink_serial_node:
   ros__parameters:
-    # Serial port settings
+    # Serial port settings (common options: /dev/ttyUSB0, /dev/ttyACM0)
     serial_port: "/dev/ttyUSB0"
     baudrate: 115200
     

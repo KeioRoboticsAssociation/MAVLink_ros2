@@ -27,8 +27,8 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
     
     // 受信したことを必ずログ出力
     RCLCPP_INFO(node_->get_logger(), 
-        "SERVO_OUTPUT_RAW received: time=%llu, port=%d, servo1=%d, servo2=%d, servo3=%d",
-        servo_raw.time_usec, servo_raw.port, 
+        "SERVO_OUTPUT_RAW received: time=%u, port=%d, servo1=%d, servo2=%d, servo3=%d",
+        static_cast<uint32_t>(servo_raw.time_usec), servo_raw.port, 
         servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw);
     
     // Update servo states from MAVLink data

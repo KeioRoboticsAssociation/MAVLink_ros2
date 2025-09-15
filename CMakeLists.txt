@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(stm32_mavlink_interface)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -Wno-address-of-packed-member)
 endif()
 
 # Find dependencies
