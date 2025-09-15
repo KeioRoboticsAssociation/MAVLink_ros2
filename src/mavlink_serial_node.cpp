@@ -161,6 +161,8 @@ void MAVLinkSerialNode::txThread() {
 }
 
 void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
+    RCLCPP_DEBUG(this->get_logger(), "Received MAVLink message ID: %d, len: %d", msg.msgid, msg.len);
+
     switch (msg.msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT:
             handleHeartbeat(msg);
@@ -187,7 +189,8 @@ void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             // This would be handled on TX side
             break;
 
-        case 181: // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS
+        case 253: // MAVLINK_MSG_ID_STATUSTEXT - STM32 is using this ID for RoboMaster motor status
+            RCLCPP_DEBUG(this->get_logger(), "Received RoboMaster motor status message (ID 253)");
             handleRobomasterStatus(msg);
             break;
 

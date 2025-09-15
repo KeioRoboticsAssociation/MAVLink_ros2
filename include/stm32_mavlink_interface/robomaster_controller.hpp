@@ -18,7 +18,7 @@ class RobomasterController {
 public:
     static constexpr uint8_t MAX_MOTORS = 8;
     static constexpr uint32_t TELEMETRY_RATE_MS = 100;  // 10Hz telemetry
-    static constexpr uint32_t COMMAND_TIMEOUT_MS = 1000; // 1s command timeout
+    static constexpr uint32_t COMMAND_TIMEOUT_MS = 5000; // 1s command timeout
 
     RobomasterController(rclcpp::Node* node);
     ~RobomasterController() = default;

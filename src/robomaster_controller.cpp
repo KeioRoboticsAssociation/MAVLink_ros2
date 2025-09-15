@@ -126,18 +126,80 @@ void RobomasterController::handleMotorTelemetry(const mavlink_message_t& msg) {
 }
 
 void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
-    // Parse motor status message
-    uint8_t motor_id = 1; // Would be extracted from message
-    
+    // Parse text format: "M5: pos= vel= cur=1851 temp=34 EN OK"
+    // MAVLink STATUSTEXT message has severity(1) + text(49)
+    if (msg.len < 10) return; // Need minimum message length
+
+    // Extract text from STATUSTEXT message (skip severity byte)
+    std::string text_msg(reinterpret_cast<const char*>(msg.payload64) + 1, msg.len - 1);
+
+    // Parse the text format: "M5: pos= vel= cur=1851 temp=34 EN OK"
+    if (text_msg.size() < 10 || text_msg[0] != 'M') return;
+
+    // Extract motor ID
+    uint8_t motor_id = text_msg[1] - '0';
+    if (motor_id < 1 || motor_id > 8) return; // Invalid motor ID
+
     std::lock_guard<std::mutex> lock(motors_mutex_);
     ensureMotorExists(motor_id);
     MotorData& motor = motors_[motor_id];
-    
-    // Update status from message
-    // motor.state.status = decoded_status;
-    // motor.state.enabled = decoded_enabled;
-    
-    RCLCPP_DEBUG(node_->get_logger(), "Received status for motor %d", motor_id);
+
+    // Parse the text for current and temperature values
+    size_t cur_pos = text_msg.find("cur=");
+    size_t temp_pos = text_msg.find("temp=");
+    size_t en_pos = text_msg.find(" EN ");
+    size_t ok_pos = text_msg.find(" OK");
+    size_t err_pos = text_msg.find(" ERR");
+
+    if (cur_pos != std::string::npos && temp_pos != std::string::npos &&
+        en_pos != std::string::npos && (ok_pos != std::string::npos || err_pos != std::string::npos)) {
+
+        // Extract current value
+        std::string cur_str = text_msg.substr(cur_pos + 4);
+        size_t cur_end = cur_str.find(' ');
+        if (cur_end != std::string::npos) {
+            int current = std::stoi(cur_str.substr(0, cur_end));
+            motor.state.current_milliamps = current;
+        }
+
+        // Extract temperature value
+        std::string temp_str = text_msg.substr(temp_pos + 5);
+        size_t temp_end = temp_str.find(' ');
+        if (temp_end != std::string::npos) {
+            int temperature = std::stoi(temp_str.substr(0, temp_end));
+            motor.state.temperature_celsius = temperature;
+        }
+
+        // Set motor status based on EN OK/ERR
+        motor.state.enabled = true;
+        if (ok_pos != std::string::npos) {
+            motor.state.status = motor.state.STATUS_OK;
+        } else if (err_pos != std::string::npos) {
+            motor.state.status = motor.state.STATUS_CAN_ERROR; // or appropriate error status
+        }
+
+        // Position and velocity are not provided in text format, keep previous values
+        // or set to defaults if first time
+        if (motor.last_telemetry_time.seconds() == 0) {
+            motor.state.current_position_rad = 0.0;
+            motor.state.current_velocity_rps = 0.0;
+        }
+
+        // Update timestamps
+        motor.state.header.stamp = node_->get_clock()->now();
+        motor.state.motor_id = motor_id;
+        motor.last_telemetry_time = node_->get_clock()->now();
+        motor.online = true;
+
+        RCLCPP_DEBUG(node_->get_logger(),
+                    "Motor %d status: cur=%d, temp=%d, enabled=%d",
+                    motor_id, motor.state.current_milliamps, motor.state.temperature_celsius, motor.state.enabled);
+
+        // Immediately publish the updated state
+        motor_state_pub_->publish(motor.state);
+    } else {
+        RCLCPP_WARN(node_->get_logger(), "Could not parse motor status text: %s", text_msg.c_str());
+    }
 }
 
 void RobomasterController::handleParameterValue(const mavlink_message_t& msg) {
