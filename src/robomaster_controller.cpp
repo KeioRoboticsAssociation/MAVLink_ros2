@@ -371,21 +371,32 @@ void RobomasterController::buildMotorControlMessage(const stm32_mavlink_interfac
             return;
     }
 
-    // Use MAVLink COMMAND_LONG message to send motor control commands
-    // This is more compatible and standardized than custom messages
-    mavlink_msg_command_long_pack(
-        system_id, component_id, &msg,
-        target_system, 1, // target system, target component
-        MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL, // Use custom command ID 180
-        0, // confirmation
-        static_cast<float>(cmd.motor_id),    // param1: motor ID
-        static_cast<float>(cmd.control_mode), // param2: control mode
-        control_value,                        // param3: control value
-        static_cast<float>(cmd.enabled ? 1 : 0), // param4: enabled flag
-        0, 0, 0 // param5-7: unused
-    );
+    // Build custom RoboMaster motor control message (ID 180) to match STM32 firmware expectations
+    // Payload structure expected by STM32: [motor_id][control_mode][4-byte float value]
+    uint8_t payload[6] = {0};
 
-    RCLCPP_INFO(node_->get_logger(), "Built motor control command: ID=%d, mode=%d, value=%.3f, enabled=%d",
+    payload[0] = cmd.motor_id;
+    payload[1] = cmd.control_mode;
+
+    // Pack control value as little endian float (bytes 2-5)
+    std::memcpy(&payload[2], &control_value, sizeof(float));
+
+    // Create custom MAVLink message using proper MAVLink v2 structure
+    msg.msgid = MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL;
+    msg.len = sizeof(payload);
+    msg.sysid = system_id;
+    msg.compid = component_id;
+    msg.seq = 0;  // Could track sequence numbers
+    msg.magic = MAVLINK_STX;
+
+    // Copy payload to message
+    std::memcpy(msg.payload64, payload, sizeof(payload));
+
+    // Calculate checksum using MAVLink library functions
+    msg.checksum = crc_calculate(reinterpret_cast<const uint8_t*>(&msg.len), MAVLINK_CORE_HEADER_LEN + msg.len);
+    crc_accumulate(0, &msg.checksum);  // CRC_EXTRA for custom message ID 180
+
+    RCLCPP_INFO(node_->get_logger(), "Built motor control message: ID=%d, mode=%d, value=%.3f, enabled=%d",
                  cmd.motor_id, cmd.control_mode, control_value, cmd.enabled);
 }
 
