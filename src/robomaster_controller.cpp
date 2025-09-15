@@ -43,8 +43,11 @@ void RobomasterController::motorCommandCallback(const stm32_mavlink_interface::m
     motor.last_command_time = node_->get_clock()->now();
     motor.command_pending = true;
     
-    RCLCPP_DEBUG(node_->get_logger(), "Received command for motor %d, mode %d", 
-                 msg->motor_id, msg->control_mode);
+    RCLCPP_INFO(node_->get_logger(), "Received command for motor %d, mode %d, value=%.3f, enabled=%d",
+                 msg->motor_id, msg->control_mode,
+                 (msg->control_mode == 1 ? msg->target_velocity_rps :
+                  msg->control_mode == 0 ? msg->target_current_ma : msg->target_position_rad),
+                 msg->enabled);
 }
 
 void RobomasterController::setMotorConfigCallback(
@@ -382,7 +385,7 @@ void RobomasterController::buildMotorControlMessage(const stm32_mavlink_interfac
         0, 0, 0 // param5-7: unused
     );
 
-    RCLCPP_DEBUG(node_->get_logger(), "Built motor control command: ID=%d, mode=%d, value=%.3f, enabled=%d",
+    RCLCPP_INFO(node_->get_logger(), "Built motor control command: ID=%d, mode=%d, value=%.3f, enabled=%d",
                  cmd.motor_id, cmd.control_mode, control_value, cmd.enabled);
 }
 
