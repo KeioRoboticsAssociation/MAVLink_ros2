@@ -98,7 +98,7 @@ void RobomasterController::getMotorConfigCallback(
     response->message = "Configuration retrieved successfully";
 }
 
-void RobomasterController::handleMotorTelemetry(const mavlink_message_t& msg) {
+void RobomasterController::handleMotorTelemetry(const mavlink_message_t& /* msg */) {
     // Parse custom RoboMaster telemetry message from STM32
     // This would decode position, velocity, current, temperature data
     
@@ -337,14 +337,70 @@ bool RobomasterController::isValidMotorId(uint8_t motor_id) const {
 }
 
 void RobomasterController::buildMotorControlMessage(const stm32_mavlink_interface::msg::RobomasterMotorCommand& cmd,
-                                                   mavlink_message_t& msg, uint8_t system_id, 
-                                                   uint8_t component_id, uint8_t target_system) {
-    // Build custom motor control message
-    // This would use custom MAVLink message definitions
-    
-    // For now, use a standard message as placeholder
-    mavlink_msg_manual_control_pack(system_id, component_id, &msg, target_system,
-                                   (int16_t)(cmd.target_velocity_rps * 1000), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                                                   mavlink_message_t& msg, uint8_t system_id,
+                                                   uint8_t component_id, uint8_t /* target_system */) {
+    // Build custom RoboMaster motor control message (ID 180)
+    uint8_t payload[6] = {0};
+
+    // Validate motor ID
+    if (cmd.motor_id < 1 || cmd.motor_id > MAX_MOTORS) {
+        RCLCPP_ERROR(node_->get_logger(), "Invalid motor ID: %d", cmd.motor_id);
+        return;
+    }
+
+    // Validate control mode
+    if (cmd.control_mode > 2) {
+        RCLCPP_ERROR(node_->get_logger(), "Invalid control mode: %d", cmd.control_mode);
+        return;
+    }
+
+    // Payload structure expected by microcontroller:
+    // [0]: Motor ID (1-8)
+    // [1]: Control mode (0=current, 1=velocity, 2=position)
+    // [2-5]: Control value (4-byte float, little endian)
+
+    payload[0] = cmd.motor_id;
+    payload[1] = cmd.control_mode;
+
+    // Extract control value based on mode
+    float control_value = 0.0f;
+    switch (cmd.control_mode) {
+        case cmd.CONTROL_MODE_CURRENT:
+            control_value = static_cast<float>(cmd.target_current_ma);
+            break;
+        case cmd.CONTROL_MODE_VELOCITY:
+            control_value = cmd.target_velocity_rps;
+            break;
+        case cmd.CONTROL_MODE_POSITION:
+            control_value = cmd.target_position_rad;
+            break;
+        default:
+            RCLCPP_ERROR(node_->get_logger(), "Unknown control mode: %d", cmd.control_mode);
+            return;
+    }
+
+    // Pack control value as little endian float
+    std::memcpy(&payload[2], &control_value, sizeof(float));
+
+    // Create custom MAVLink message
+    msg.msgid = MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL;
+    msg.len = sizeof(payload);
+    msg.sysid = system_id;
+    msg.compid = component_id;
+    msg.checksum = 0;  // Will be calculated by mavlink_finalize_message
+    msg.magic = MAVLINK_STX;
+    msg.seq = 0;  // Could track sequence numbers
+
+    // Copy payload
+    std::memcpy(msg.payload64, payload, sizeof(payload));
+
+    // Calculate checksum manually for custom message
+    uint16_t checksum = crc_calculate(reinterpret_cast<const uint8_t*>(&msg.len), MAVLINK_CORE_HEADER_LEN + msg.len);
+    crc_accumulate(0, &checksum);  // CRC_EXTRA for custom message
+    msg.checksum = checksum;
+
+    RCLCPP_DEBUG(node_->get_logger(), "Built motor control message: ID=%d, mode=%d, value=%.3f",
+                 cmd.motor_id, cmd.control_mode, control_value);
 }
 
 void RobomasterController::buildParameterSetMessage(uint8_t motor_id, const std::string& param_name, 
