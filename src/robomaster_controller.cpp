@@ -301,16 +301,19 @@ void RobomasterController::checkCommandTimeouts() {
     auto now = node_->get_clock()->now();
     
     for (auto& [motor_id, motor] : motors_) {
-        auto time_since_command = now - motor.last_command_time;
         auto time_since_telemetry = now - motor.last_telemetry_time;
-        
-        if (time_since_command.seconds() > (COMMAND_TIMEOUT_MS / 1000.0)) {
-            if (motor.state.enabled) {
-                RCLCPP_WARN(node_->get_logger(), "Command timeout for motor %d", motor_id);
-                motor.state.status = motor.state.STATUS_TIMEOUT;
+
+        // Only check for command timeout if a command was actually sent
+        if (motor.last_command_time.nanoseconds() > 0) {
+            auto time_since_command = now - motor.last_command_time;
+            if (time_since_command.seconds() > (COMMAND_TIMEOUT_MS / 1000.0)) {
+                if (motor.state.enabled) {
+                    RCLCPP_WARN(node_->get_logger(), "Command timeout for motor %d", motor_id);
+                    motor.state.status = motor.state.STATUS_TIMEOUT;
+                }
             }
         }
-        
+
         if (time_since_telemetry.seconds() > 2.0) { // 2 second telemetry timeout
             motor.online = false;
         }
@@ -322,8 +325,9 @@ void RobomasterController::ensureMotorExists(uint8_t motor_id) {
         MotorData motor;
         motor.state.motor_id = motor_id;
         motor.state.header.frame_id = "robomaster_motor_" + std::to_string(motor_id);
-        motor.last_command_time = node_->get_clock()->now();
+        // Don't set last_command_time until an actual command is received
         motor.last_telemetry_time = node_->get_clock()->now();
+        motor.command_pending = false;
         motors_[motor_id] = motor;
     }
 }
