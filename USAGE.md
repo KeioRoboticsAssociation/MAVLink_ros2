@@ -210,3 +210,5 @@ ros2 launch mavlink_wizard mavlink_wizard.launch.py serial_port:=/dev/ttyUSB0
 - Disable unused servos/motors
 - Use appropriate current limits
 - Monitor system diagnostics
+
+ros2 topic pub /robomaster/motor_command stm32_mavlink_interface/msg/RobomasterMotorCommand "{motor_id: 5, control_mode: 2, target_position_rad: 1.5708, enabled: true}" --once

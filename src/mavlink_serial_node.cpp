@@ -161,7 +161,7 @@ void MAVLinkSerialNode::txThread() {
 }
 
 void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
-    RCLCPP_DEBUG(this->get_logger(), "Received MAVLink message ID: %d, len: %d", msg.msgid, msg.len);
+    RCLCPP_INFO(this->get_logger(), "RX MAVLink message ID: %d, len: %d, sysid: %d", msg.msgid, msg.len, msg.sysid);
 
     switch (msg.msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT:
@@ -238,6 +238,7 @@ void MAVLinkSerialNode::sendTelemetry() {
     
     // Send RoboMaster motor commands if any
     if (robomaster_controller_->getMotorControlMessage(msg, system_id_, component_id_, target_system_id_)) {
+        RCLCPP_INFO(this->get_logger(), "send, %d", msg.msgid);
         sendMAVLinkMessage(msg);
     }
     

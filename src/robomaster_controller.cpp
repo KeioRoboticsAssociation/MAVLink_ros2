@@ -220,7 +220,7 @@ void RobomasterController::handleParameterValue(const mavlink_message_t& msg) {
         }
     }
     
-    RCLCPP_DEBUG(node_->get_logger(), "Received parameter: %s = %f", param_name.c_str(), param.param_value);
+    RCLCPP_INFO(node_->get_logger(), "Received parameter: %s = %f", param_name.c_str(), param.param_value);
 }
 
 void RobomasterController::handleCommandAck(const mavlink_message_t& msg) {
@@ -371,30 +371,24 @@ void RobomasterController::buildMotorControlMessage(const stm32_mavlink_interfac
             return;
     }
 
-    // Build custom RoboMaster motor control message (ID 180) to match STM32 firmware expectations
-    // Payload structure expected by STM32: [motor_id][control_mode][4-byte float value]
-    uint8_t payload[6] = {0};
+    // Use proper MAVLink message building instead of manual construction
+    // This ensures correct MAVLink v2 format, sequence numbers, and checksum
 
+    // Build payload for custom message ID 180
+    uint8_t payload[6] = {0};
     payload[0] = cmd.motor_id;
     payload[1] = cmd.control_mode;
-
-    // Pack control value as little endian float (bytes 2-5)
     std::memcpy(&payload[2], &control_value, sizeof(float));
 
-    // Create custom MAVLink message using proper MAVLink v2 structure
-    msg.msgid = MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL;
-    msg.len = sizeof(payload);
+    // Use MAVLink's proper message finalization which handles all the checksums correctly
+    msg.msgid = 180;
     msg.sysid = system_id;
     msg.compid = component_id;
-    msg.seq = 0;  // Could track sequence numbers
-    msg.magic = MAVLINK_STX;
-
-    // Copy payload to message
+    msg.len = sizeof(payload);
     std::memcpy(msg.payload64, payload, sizeof(payload));
 
-    // Calculate checksum using MAVLink library functions
-    msg.checksum = crc_calculate(reinterpret_cast<const uint8_t*>(&msg.len), MAVLINK_CORE_HEADER_LEN + msg.len);
-    crc_accumulate(0, &msg.checksum);  // CRC_EXTRA for custom message ID 180
+    // Use MAVLink's built-in finalization function for proper checksum
+    mavlink_finalize_message(&msg, system_id, component_id, sizeof(payload), sizeof(payload), 0); // min_len, len, CRC_EXTRA = 0 for custom message
 
     RCLCPP_INFO(node_->get_logger(), "Built motor control message: ID=%d, mode=%d, value=%.3f, enabled=%d",
                  cmd.motor_id, cmd.control_mode, control_value, cmd.enabled);
