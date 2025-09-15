@@ -37,11 +37,13 @@ public:
     // Update method (call periodically)
     void update();
 
+    // ROS2 callback (public for main node access)
+    void motorCommandCallback(const stm32_mavlink_interface::msg::RobomasterMotorCommand::SharedPtr msg);
+
 private:
     rclcpp::Node* node_;
     
     // ROS2 interfaces
-    rclcpp::Subscription<stm32_mavlink_interface::msg::RobomasterMotorCommand>::SharedPtr motor_cmd_sub_;
     rclcpp::Publisher<stm32_mavlink_interface::msg::RobomasterMotorState>::SharedPtr motor_state_pub_;
     rclcpp::Service<stm32_mavlink_interface::srv::SetRobomasterMotorConfig>::SharedPtr set_config_srv_;
     rclcpp::Service<stm32_mavlink_interface::srv::GetRobomasterMotorConfig>::SharedPtr get_config_srv_;
@@ -91,7 +93,6 @@ private:
     std::mutex pending_requests_mutex_;
     
     // Callbacks
-    void motorCommandCallback(const stm32_mavlink_interface::msg::RobomasterMotorCommand::SharedPtr msg);
     void setMotorConfigCallback(
         const std::shared_ptr<stm32_mavlink_interface::srv::SetRobomasterMotorConfig::Request> request,
         std::shared_ptr<stm32_mavlink_interface::srv::SetRobomasterMotorConfig::Response> response);

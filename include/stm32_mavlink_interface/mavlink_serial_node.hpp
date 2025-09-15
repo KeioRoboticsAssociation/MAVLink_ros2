@@ -4,6 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <diagnostic_msgs/msg/diagnostic_status.hpp>
+#include "stm32_mavlink_interface/msg/robomaster_motor_command.hpp"
 #include <thread>
 #include <atomic>
 #include <termios.h>
@@ -55,6 +56,9 @@ private:
     
     // Publishers
     rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticStatus>::SharedPtr diagnostics_pub_;
+
+    // Subscriptions
+    rclcpp::Subscription<stm32_mavlink_interface::msg::RobomasterMotorCommand>::SharedPtr robomaster_cmd_sub_;
     
     // Methods
     bool openSerialPort();

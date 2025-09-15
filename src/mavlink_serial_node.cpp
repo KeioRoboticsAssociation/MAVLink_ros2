@@ -32,9 +32,19 @@ MAVLinkSerialNode::MAVLinkSerialNode()
     servo_controller_ = std::make_unique<ServoController>(this);
     encoder_interface_ = std::make_unique<EncoderInterface>(this);
     robomaster_controller_ = std::make_unique<RobomasterController>(this);
-    
+
     // Create publishers
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("diagnostics", 10);
+
+    // CRITICAL FIX: Create RoboMaster subscription directly in main node for proper executor handling
+    robomaster_cmd_sub_ = this->create_subscription<stm32_mavlink_interface::msg::RobomasterMotorCommand>(
+        "robomaster/motor_command", 10,
+        [this](const stm32_mavlink_interface::msg::RobomasterMotorCommand::SharedPtr msg) {
+            RCLCPP_INFO(this->get_logger(), "MAIN NODE CALLBACK TRIGGERED! Motor ID: %d", msg->motor_id);
+            robomaster_controller_->motorCommandCallback(msg);
+        });
+
+    RCLCPP_INFO(this->get_logger(), "Main node RoboMaster subscription created");
     
     // Open serial port
     if (!openSerialPort()) {

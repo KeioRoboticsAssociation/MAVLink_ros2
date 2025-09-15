@@ -5,11 +5,8 @@
 namespace stm32_mavlink_interface {
 
 RobomasterController::RobomasterController(rclcpp::Node* node) : node_(node) {
-    // Create ROS2 subscriptions
-    motor_cmd_sub_ = node_->create_subscription<stm32_mavlink_interface::msg::RobomasterMotorCommand>(
-        "robomaster/motor_command", 10,
-        std::bind(&RobomasterController::motorCommandCallback, this, std::placeholders::_1));
-    
+    // No subscription here - handled by main MAVLink node
+
     // Create ROS2 publishers
     motor_state_pub_ = node_->create_publisher<stm32_mavlink_interface::msg::RobomasterMotorState>(
         "robomaster/motor_state", 10);
@@ -43,7 +40,7 @@ void RobomasterController::motorCommandCallback(const stm32_mavlink_interface::m
     motor.last_command_time = node_->get_clock()->now();
     motor.command_pending = true;
     
-    RCLCPP_DEBUG(node_->get_logger(), "Received command for motor %d, mode %d, value=%.3f, enabled=%d",
+    RCLCPP_INFO(node_->get_logger(), "Received command for motor %d, mode %d, value=%.3f, enabled=%d",
                  msg->motor_id, msg->control_mode,
                  (msg->control_mode == 1 ? msg->target_velocity_rps :
                   msg->control_mode == 0 ? msg->target_current_ma : msg->target_position_rad),
