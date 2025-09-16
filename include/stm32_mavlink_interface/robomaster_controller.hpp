@@ -63,20 +63,8 @@ private:
         bool config_pending = false;
         bool online = false;
 
-        // Additional MAVLink fields
-        float current_position = 0.0f;
-        float current_velocity = 0.0f;
-        int16_t current_milliamps = 0;
-        uint8_t temperature = 0;
-        float target_position = 0.0f;
-        float target_velocity = 0.0f;
-        int16_t target_current = 0;
-        uint8_t control_mode = 0;
-        bool enabled = false;
-        uint8_t status = 0;
-        uint16_t error_count = 0;
-        uint16_t timeout_count = 0;
-        uint16_t overheat_count = 0;
+        // All motor data is now stored in the state field above
+        // Removed duplicate fields to ensure consistency
     };
     
     std::unordered_map<uint8_t, MotorData> motors_;

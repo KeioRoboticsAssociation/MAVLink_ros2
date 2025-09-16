@@ -27,7 +27,7 @@ RobomasterController::RobomasterController(rclcpp::Node* node) : node_(node) {
 
 void RobomasterController::motorCommandCallback(const stm32_mavlink_interface::msg::RobomasterMotorCommand::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(motors_mutex_);
-    
+
     if (!isValidMotorId(msg->motor_id)) {
         RCLCPP_WARN(node_->get_logger(), "Invalid motor ID: %d", msg->motor_id);
         return;
@@ -136,23 +136,26 @@ void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
         ensureMotorExists(motor_status.motor_id);
         MotorData& motor = motors_[motor_status.motor_id];
 
-        // Update motor data from MAVLink message
-        motor.current_position = motor_status.current_position;
-        motor.current_velocity = motor_status.current_velocity;
-        motor.current_milliamps = motor_status.current_milliamps;
-        motor.temperature = motor_status.temperature;
-        motor.target_position = motor_status.target_position;
-        motor.target_velocity = motor_status.target_velocity;
-        motor.target_current = motor_status.target_current;
-        motor.control_mode = motor_status.control_mode;
-        motor.enabled = (motor_status.enabled == 1);
-        motor.status = motor_status.status;
-        motor.error_count = motor_status.error_count;
-        motor.timeout_count = motor_status.timeout_count;
-        motor.overheat_count = motor_status.overheat_count;
-        motor.last_update = node_->now();
+        // Update motor state from MAVLink message
+        motor.state.current_position_rad = motor_status.current_position;
+        motor.state.current_velocity_rps = motor_status.current_velocity;
+        motor.state.current_milliamps = motor_status.current_milliamps;
+        motor.state.temperature_celsius = motor_status.temperature;
+        motor.state.target_position_rad = motor_status.target_position;
+        motor.state.target_velocity_rps = motor_status.target_velocity;
+        motor.state.target_current_ma = motor_status.target_current;
+        motor.state.control_mode = motor_status.control_mode;
+        motor.state.enabled = (motor_status.enabled == 1);
+        motor.state.status = motor_status.status;
+        motor.state.error_count = motor_status.error_count;
+        motor.state.timeout_count = motor_status.timeout_count;
+        motor.state.overheat_count = motor_status.overheat_count;
+        motor.state.header.stamp = node_->get_clock()->now();
+        motor.state.motor_id = motor_status.motor_id;
+        motor.last_update = node_->get_clock()->now();
 
-        publishMotorStates();
+        // Immediately publish the updated state for this specific motor
+        motor_state_pub_->publish(motor.state);
         return;
     }
 

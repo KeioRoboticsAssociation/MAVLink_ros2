@@ -88,6 +88,9 @@ private:
     // RoboMaster MAVLink handlers
     void handleRobomasterTelemetry(const mavlink_message_t& msg);
     void handleRobomasterStatus(const mavlink_message_t& msg);
+
+    // Text-based message handler
+    void handleTextMotorStatus(const std::string& text_msg);
 };
 
 } // namespace stm32_mavlink_interface

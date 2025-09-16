@@ -40,7 +40,9 @@ MAVLinkSerialNode::MAVLinkSerialNode()
     robomaster_cmd_sub_ = this->create_subscription<stm32_mavlink_interface::msg::RobomasterMotorCommand>(
         "robomaster/motor_command", 10,
         [this](const stm32_mavlink_interface::msg::RobomasterMotorCommand::SharedPtr msg) {
-            RCLCPP_INFO(this->get_logger(), "MAIN NODE CALLBACK TRIGGERED! Motor ID: %d", msg->motor_id);
+            RCLCPP_ERROR(this->get_logger(), "******************************************");
+            RCLCPP_ERROR(this->get_logger(), "*** ROS2 CALLBACK TRIGGERED! Motor %d ***", msg->motor_id);
+            RCLCPP_ERROR(this->get_logger(), "******************************************");
             robomaster_controller_->motorCommandCallback(msg);
         });
 
@@ -144,20 +146,104 @@ bool MAVLinkSerialNode::configureSerialPort() {
 
 void MAVLinkSerialNode::rxThread() {
     uint8_t buffer[1024];
-    
+    int consecutive_empty_reads = 0;
+
     while (running_) {
         int bytes_read = read(serial_fd_, buffer, sizeof(buffer));
-        
+
         if (bytes_read > 0) {
+            consecutive_empty_reads = 0;  // Reset counter on successful read
+
+            // Log raw data for debugging (first 50 bytes)
+            static int debug_counter = 0;
+            if (debug_counter++ % 100 == 0) {  // Every 100th read
+                std::string hex_data;
+                for (int j = 0; j < std::min(bytes_read, 50); j++) {
+                    char hex_byte[4];
+                    snprintf(hex_byte, sizeof(hex_byte), "%02X ", buffer[j]);
+                    hex_data += hex_byte;
+                }
+                RCLCPP_INFO(this->get_logger(), "Raw data (%d bytes): %s", bytes_read, hex_data.c_str());
+            }
+
+            // Parse both MAVLink packets and extract text motor status messages from raw data
+            static std::string text_buffer;
+            static std::string debug_buffer;
+
+            // First, try standard MAVLink parsing for each byte
             for (int i = 0; i < bytes_read; i++) {
                 if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &rx_msg_, &rx_status_)) {
                     handleMAVLinkMessage(rx_msg_);
                 }
             }
+
+            // Second, scan the entire buffer for motor status patterns
+            std::string data_string(reinterpret_cast<char*>(buffer), bytes_read);
+
+            // Look for motor status patterns in the raw data
+            size_t pos = 0;
+            while (pos < data_string.length()) {
+                size_t start = data_string.find("M", pos);
+                if (start == std::string::npos) break;
+
+                // Look for the pattern "M#: pos=" where # is a digit
+                if (start + 8 < data_string.length() &&
+                    data_string[start+1] >= '0' && data_string[start+1] <= '9' &&
+                    data_string.substr(start+2, 6) == ": pos=") {
+
+                    // Found start of motor message, now find the end
+                    size_t end = start + 8;
+                    bool found_en = false;
+
+                    // Scan ahead to find " EN " marker
+                    while (end < data_string.length() && end < start + 50) {
+                        if (end + 4 < data_string.length() &&
+                            data_string.substr(end, 4) == " EN ") {
+                            found_en = true;
+                            end += 4;
+                            break;
+                        }
+                        end++;
+                    }
+
+                    if (found_en) {
+                        // Look for OK or ERR after EN
+                        if (end + 2 < data_string.length() &&
+                            (data_string.substr(end, 2) == "OK" || data_string.substr(end, 3) == "ERR")) {
+                            end += (data_string.substr(end, 2) == "OK") ? 2 : 3;
+
+                            // Extract the complete motor status message
+                            std::string motor_msg = data_string.substr(start, end - start);
+
+                            // Clean up the message (remove non-printable characters)
+                            std::string clean_msg;
+                            for (char c : motor_msg) {
+                                if (c >= 32 && c <= 126) {
+                                    clean_msg += c;
+                                }
+                            }
+
+                            if (clean_msg.length() > 10) {
+                                handleTextMotorStatus(clean_msg);
+                            }
+
+                            pos = end;
+                            continue;
+                        }
+                    }
+                }
+                pos = start + 1;
+            }
         } else if (bytes_read < 0 && errno != EAGAIN) {
             RCLCPP_ERROR(this->get_logger(), "Serial read error: %s", strerror(errno));
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         } else {
+            consecutive_empty_reads++;
+            // Log if we're not receiving data for extended periods
+            if (consecutive_empty_reads % 1000 == 0) {  // Every 10 seconds
+                RCLCPP_WARN(this->get_logger(), "No serial data received for %d read attempts (%.1f seconds)",
+                           consecutive_empty_reads, consecutive_empty_reads * 10.0 / 1000.0);
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
@@ -244,32 +330,71 @@ void MAVLinkSerialNode::sendHeartbeat() {
 
 void MAVLinkSerialNode::sendTelemetry() {
     mavlink_message_t msg;
-    
+    static int telemetry_counter = 0;
+
+    // Send multiple types of keepalive messages more frequently to keep STM32 active
+    if (telemetry_counter % 10 == 0) { // Every second at 10Hz
+        // Request data stream
+        mavlink_msg_request_data_stream_pack(system_id_, component_id_, &msg,
+                                           target_system_id_, target_component_id_,
+                                           MAV_DATA_STREAM_ALL, 10, 1);
+        sendMAVLinkMessage(msg);
+        RCLCPP_INFO(this->get_logger(), "TX: Requesting data stream from STM32");
+    }
+
+    if (telemetry_counter % 20 == 5) { // Every 2 seconds, offset by 0.5 seconds
+        // Send heartbeat to trigger STM32 response
+        mavlink_msg_heartbeat_pack(system_id_, component_id_, &msg,
+                                 MAV_TYPE_GROUND_ROVER, MAV_AUTOPILOT_GENERIC,
+                                 MAV_MODE_MANUAL_ARMED, 0, MAV_STATE_ACTIVE);
+        sendMAVLinkMessage(msg);
+        RCLCPP_INFO(this->get_logger(), "TX: Sending heartbeat to STM32");
+    }
+
+    if (telemetry_counter % 30 == 10) { // Every 3 seconds, offset
+        // Request parameter list to trigger response
+        mavlink_msg_param_request_list_pack(system_id_, component_id_, &msg,
+                                           target_system_id_, target_component_id_);
+        sendMAVLinkMessage(msg);
+        RCLCPP_INFO(this->get_logger(), "TX: Requesting parameter list from STM32");
+    }
+
+    if (telemetry_counter % 40 == 15) { // Every 4 seconds, offset
+        // Send command to request motor status
+        mavlink_msg_command_long_pack(system_id_, component_id_, &msg,
+                                    target_system_id_, target_component_id_,
+                                    MAV_CMD_REQUEST_MESSAGE, 0,
+                                    253, 0, 0, 0, 0, 0, 0); // Request STATUSTEXT messages
+        sendMAVLinkMessage(msg);
+        RCLCPP_INFO(this->get_logger(), "TX: Requesting status messages from STM32");
+    }
+
     // Send servo commands if any
     if (servo_controller_->getRCOverrideMessage(msg, system_id_, component_id_, target_system_id_)) {
         sendMAVLinkMessage(msg);
     }
-    
+
     // Send RoboMaster motor commands if any
     if (robomaster_controller_->getMotorControlMessage(msg, system_id_, component_id_, target_system_id_)) {
         RCLCPP_INFO(this->get_logger(), "send, %d", msg.msgid);
         sendMAVLinkMessage(msg);
     }
-    
+
     // Send RoboMaster motor configuration updates if any
     if (robomaster_controller_->getMotorConfigMessage(msg, system_id_, component_id_, target_system_id_)) {
         sendMAVLinkMessage(msg);
     }
-    
+
     // Send RoboMaster parameter requests if any
     if (robomaster_controller_->getParameterRequestMessage(msg, system_id_, component_id_, target_system_id_)) {
         sendMAVLinkMessage(msg);
     }
-    
+
     // Update RoboMaster controller
     robomaster_controller_->update();
-    
+
     publishDiagnostics();
+    telemetry_counter++;
 }
 
 void MAVLinkSerialNode::publishDiagnostics() {
@@ -354,6 +479,26 @@ void MAVLinkSerialNode::handleRobomasterTelemetry(const mavlink_message_t& msg) 
 void MAVLinkSerialNode::handleRobomasterStatus(const mavlink_message_t& msg) {
     // Forward RoboMaster status to controller
     robomaster_controller_->handleMotorStatus(msg);
+}
+
+void MAVLinkSerialNode::handleTextMotorStatus(const std::string& text_msg) {
+    // Parse text motor status like "M5: pos= vel= cur=0 temp=0 EN OK"
+    RCLCPP_INFO(this->get_logger(), "RX Text Motor Status: %s", text_msg.c_str());
+
+    // Create a fake STATUSTEXT MAVLink message to pass to RoboMaster controller
+    mavlink_message_t fake_msg;
+    mavlink_statustext_t statustext;
+
+    // Fill in STATUSTEXT message
+    statustext.severity = MAV_SEVERITY_INFO;
+    strncpy(statustext.text, text_msg.c_str(), sizeof(statustext.text) - 1);
+    statustext.text[sizeof(statustext.text) - 1] = '\0';
+
+    // Pack the message
+    mavlink_msg_statustext_encode(1, 1, &fake_msg, &statustext);
+
+    // Forward to RoboMaster controller for parsing
+    robomaster_controller_->handleMotorStatus(fake_msg);
 }
 
 } // namespace stm32_mavlink_interface
