@@ -37,9 +37,10 @@ private:
     struct ServoData {
         float target_angle_deg = 0.0f;
         float current_angle_deg = 0.0f;
-        uint16_t pulse_us = 1500;
+        uint16_t pulse_us = 0;        // Start with 0 to indicate uninitialized
         bool enabled = false;
-        uint8_t status = 0;
+        uint8_t status = 1;           // Start with NOT_INITIALIZED status
+        bool initialized = false;     // Track if servo has received data
     };
     
     std::vector<ServoData> servo_states_;

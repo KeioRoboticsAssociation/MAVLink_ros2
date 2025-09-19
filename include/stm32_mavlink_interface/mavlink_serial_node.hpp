@@ -18,6 +18,7 @@
 #include "servo_controller.hpp"
 #include "encoder_interface.hpp"
 #include "robomaster_controller.hpp"
+#include "dcmotor_controller.hpp"
 
 namespace stm32_mavlink_interface {
 
@@ -49,6 +50,7 @@ private:
     std::unique_ptr<ServoController> servo_controller_;
     std::unique_ptr<EncoderInterface> encoder_interface_;
     std::unique_ptr<RobomasterController> robomaster_controller_;
+    std::unique_ptr<DCMotorController> dcmotor_controller_;
     
     // Timers
     rclcpp::TimerBase::SharedPtr heartbeat_timer_;

@@ -26,10 +26,10 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
     std::lock_guard<std::mutex> lock(servo_mutex_);
     
     // 受信したことを必ずログ出力
-    RCLCPP_INFO(node_->get_logger(), 
-        "SERVO_OUTPUT_RAW received: time=%u, port=%d, servo1=%d, servo2=%d, servo3=%d",
-        static_cast<uint32_t>(servo_raw.time_usec), servo_raw.port, 
-        servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw);
+    // RCLCPP_INFO(node_->get_logger(), 
+    //     "SERVO_OUTPUT_RAW received: time=%u, port=%d, servo1=%d, servo2=%d, servo3=%d",
+    //     static_cast<uint32_t>(servo_raw.time_usec), servo_raw.port, 
+    //     servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw);
     
     // Update servo states from MAVLink data
     uint16_t servo_values[16] = {
@@ -43,20 +43,24 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
     for (size_t i = 0; i < 16 && i < servo_states_.size(); i++) {
         uint16_t old_pulse = servo_states_[i].pulse_us;
         bool old_enabled = servo_states_[i].enabled;
-        
-        servo_states_[i].pulse_us = servo_values[i];
-        
+
         if (servo_values[i] == 0) {
-            servo_states_[i].enabled = false;
-            servo_states_[i].status = 1; // NOT_INITIALIZED
-            servo_states_[i].current_angle_deg = 0.0f;
+            // Only mark as initialized if we previously had a non-zero value
+            // This prevents phantom servos from being marked as active
+            if (servo_states_[i].initialized) {
+                servo_states_[i].enabled = false;
+                servo_states_[i].status = 1; // NOT_INITIALIZED
+                servo_states_[i].current_angle_deg = 0.0f;
+            }
+            // Don't set initialized = false here to keep existing devices
         } else if (servo_values[i] >= 500 && servo_values[i] <= 2500) {
+            servo_states_[i].initialized = true;  // Mark as initialized
             servo_states_[i].enabled = true;
             servo_states_[i].status = 0; // OK
             float normalized = (servo_values[i] - 1500.0f) / 500.0f;
             servo_states_[i].current_angle_deg = normalized * 90.0f;
-            servo_states_[i].target_angle_deg = servo_states_[i].current_angle_deg;
         } else {
+            servo_states_[i].initialized = true;  // Mark as initialized even if error
             servo_states_[i].enabled = false;
             servo_states_[i].status = 2; // ERROR
             servo_states_[i].current_angle_deg = 0.0f;
@@ -145,12 +149,27 @@ bool ServoController::getRCOverrideMessage(mavlink_message_t& msg, uint8_t syste
     
     bool has_command = false;
     for (size_t i = 0; i < 8 && i < servo_states_.size(); i++) {
-        if (servo_states_[i].enabled && servo_states_[i].pulse_us > 0) {
-            channels[i] = servo_states_[i].pulse_us;
+        if (servo_states_[i].initialized && servo_states_[i].enabled) {
+            // Always send the exact user-commanded pulse value to maintain watchdog
+            uint16_t pulse_to_send = servo_states_[i].pulse_us;
+
+            if (pulse_to_send == 0) {
+                // Default to center position if no pulse is set
+                pulse_to_send = 1500;
+            }
+
+            channels[i] = pulse_to_send;
             has_command = true;
+
+            // Debug logging every 50 cycles (reduce spam)
+            static int debug_counter = 0;
+            if (debug_counter++ % 50 == 0) {
+                std::cout << "Servo " << (i+1) << ": sending PWM=" << pulse_to_send
+                         << "μs, target_angle=" << servo_states_[i].target_angle_deg << "°" << std::endl;
+            }
         }
     }
-    
+
     if (!has_command) {
         return false;
     }
@@ -165,20 +184,34 @@ bool ServoController::getRCOverrideMessage(mavlink_message_t& msg, uint8_t syste
 
 void ServoController::servoCommandCallback(const stm32_mavlink_interface::msg::ServoCommand::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(servo_mutex_);
-    
+
     if (msg->servo_id > 0 && msg->servo_id <= servo_states_.size()) {
         size_t idx = msg->servo_id - 1;
-        
+
+        // Mark servo as initialized when it receives a command
+        servo_states_[idx].initialized = true;
+
         if (msg->pulse_us > 0) {
-            // Direct PWM control
+            // Direct PWM control - preserve exact user value
             servo_states_[idx].pulse_us = msg->pulse_us;
-            servo_states_[idx].target_angle_deg = ((msg->pulse_us - 1500.0f) / 500.0f) * 90.0f;
+            // Convert PWM back to angle: 1000μs = -180°, 1500μs = 0°, 2000μs = +180°
+            servo_states_[idx].target_angle_deg = ((msg->pulse_us - 1500.0f) / 500.0f) * 180.0f;
         } else {
-            // Angle control
+            // Angle control - convert to PWM preserving user's exact angle intent
             servo_states_[idx].target_angle_deg = msg->angle_deg;
-            servo_states_[idx].pulse_us = static_cast<uint16_t>(1500 + (msg->angle_deg / 90.0f) * 500.0f);
+
+            // Convert angle to PWM for 360° servo (-180° to +180°)
+            // Standard mapping: -180° = 1000μs, 0° = 1500μs, +180° = 2000μs
+            // User wants: "0 degrees to 1000 pulse" - interpreting as center offset
+            // Using standard linear mapping for now:
+            // PWM = 1500 + (angle / 180) * 500
+            servo_states_[idx].pulse_us = static_cast<uint16_t>(1500 + (msg->angle_deg / 180.0f) * 500.0f);
+
+            // Ensure PWM stays in valid range (1000-2000μs)
+            if (servo_states_[idx].pulse_us < 1000) servo_states_[idx].pulse_us = 1000;
+            if (servo_states_[idx].pulse_us > 2000) servo_states_[idx].pulse_us = 2000;
         }
-        
+
         servo_states_[idx].enabled = msg->enable;
     }
 }
@@ -197,9 +230,14 @@ void ServoController::servoConfigCallback(
 
 void ServoController::publishServoStates() {
     auto now = node_->now();
-    
+
     for (size_t i = 0; i < servo_states_.size(); i++) {
-        // Always publish all servo states regardless of enabled status
+        // Only publish servo states for servos that have been initialized
+        // This prevents phantom servos (IDs 5-16) from appearing in MAVLink Wizard
+        if (!servo_states_[i].initialized) {
+            continue;
+        }
+
         auto msg = stm32_mavlink_interface::msg::ServoState();
         msg.header.stamp = now;
         msg.servo_id = i + 1;
@@ -209,7 +247,7 @@ void ServoController::publishServoStates() {
         msg.enabled = servo_states_[i].enabled;
         msg.status = servo_states_[i].status;
         msg.error_count = 0;
-        
+
         servo_state_pub_->publish(msg);
     }
 }

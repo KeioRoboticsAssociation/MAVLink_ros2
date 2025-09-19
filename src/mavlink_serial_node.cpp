@@ -32,6 +32,7 @@ MAVLinkSerialNode::MAVLinkSerialNode()
     servo_controller_ = std::make_unique<ServoController>(this);
     encoder_interface_ = std::make_unique<EncoderInterface>(this);
     robomaster_controller_ = std::make_unique<RobomasterController>(this);
+    dcmotor_controller_ = std::make_unique<DCMotorController>(this);
 
     // Create publishers
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("diagnostics", 10);
@@ -183,7 +184,77 @@ void MAVLinkSerialNode::rxThread() {
             // Look for motor status patterns in the raw data
             size_t pos = 0;
             while (pos < data_string.length()) {
+                // Look for RoboMaster motor patterns "M#:"
                 size_t start = data_string.find("M", pos);
+
+                // Also look for DC motor patterns "DC#:"
+                size_t dc_start = data_string.find("DC", pos);
+
+                // Process whichever comes first
+                if (start == std::string::npos && dc_start == std::string::npos) break;
+
+                bool process_dc = false;
+                if (dc_start != std::string::npos && (start == std::string::npos || dc_start < start)) {
+                    start = dc_start;
+                    process_dc = true;
+                }
+
+                if (process_dc) {
+                    // Handle DC motor pattern "DC10: pos=... vel=... cur=... temp=... EN OK/ERR"
+                    if (start + 10 < data_string.length() &&
+                        data_string.substr(start, 2) == "DC" &&
+                        data_string[start+2] >= '0' && data_string[start+2] <= '9' &&
+                        data_string[start+3] == ':') {
+
+                        // Find end of DC motor message
+                        size_t end = start + 4;
+                        bool found_en = false;
+
+                        while (end < data_string.length() && end < start + 60) {
+                            if (end + 4 < data_string.length() &&
+                                data_string.substr(end, 4) == " EN ") {
+                                found_en = true;
+                                end += 4;
+                                break;
+                            }
+                            end++;
+                        }
+
+                        if (found_en) {
+                            if (end + 2 < data_string.length() &&
+                                (data_string.substr(end, 2) == "OK" || data_string.substr(end, 3) == "ERR")) {
+                                end += (data_string.substr(end, 2) == "OK") ? 2 : 3;
+
+                                std::string dc_motor_msg = data_string.substr(start, end - start);
+
+                                // Clean up the DC motor message
+                                std::string clean_dc_msg;
+                                for (char c : dc_motor_msg) {
+                                    if (c >= 32 && c <= 126) {
+                                        clean_dc_msg += c;
+                                    }
+                                }
+
+                                if (clean_dc_msg.length() > 8) {
+                                    // Create fake STATUSTEXT message for DC motor
+                                    mavlink_message_t fake_dcmotor_msg;
+                                    mavlink_statustext_t dcmotor_statustext;
+                                    dcmotor_statustext.severity = MAV_SEVERITY_INFO;
+                                    strncpy(dcmotor_statustext.text, clean_dc_msg.c_str(), sizeof(dcmotor_statustext.text) - 1);
+                                    dcmotor_statustext.text[sizeof(dcmotor_statustext.text) - 1] = '\0';
+                                    mavlink_msg_statustext_encode(1, 1, &fake_dcmotor_msg, &dcmotor_statustext);
+                                    dcmotor_controller_->handleMotorStatus(fake_dcmotor_msg);
+                                }
+
+                                pos = end;
+                                continue;
+                            }
+                        }
+                    }
+                    pos = start + 1;
+                    continue;
+                }
+
                 if (start == std::string::npos) break;
 
                 // Look for the pattern "M#: pos=" where # is a digit
@@ -257,7 +328,7 @@ void MAVLinkSerialNode::txThread() {
 }
 
 void MAVLinkSerialNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
-    RCLCPP_INFO(this->get_logger(), "RX MAVLink message ID: %d, len: %d, sysid: %d", msg.msgid, msg.len, msg.sysid);
+    // RCLCPP_INFO(this->get_logger(), "RX MAVLink message ID: %d, len: %d, sysid: %d", msg.msgid, msg.len, msg.sysid);
 
     switch (msg.msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT:
@@ -390,8 +461,25 @@ void MAVLinkSerialNode::sendTelemetry() {
         sendMAVLinkMessage(msg);
     }
 
-    // Update RoboMaster controller
+    // Send DC motor commands if any
+    if (dcmotor_controller_->getMotorControlMessage(msg, system_id_, component_id_, target_system_id_)) {
+        RCLCPP_INFO(this->get_logger(), "Sending DC motor command, msgid: %d", msg.msgid);
+        sendMAVLinkMessage(msg);
+    }
+
+    // Send DC motor configuration updates if any
+    if (dcmotor_controller_->getMotorConfigMessage(msg, system_id_, component_id_, target_system_id_)) {
+        sendMAVLinkMessage(msg);
+    }
+
+    // Send DC motor parameter requests if any
+    if (dcmotor_controller_->getParameterRequestMessage(msg, system_id_, component_id_, target_system_id_)) {
+        sendMAVLinkMessage(msg);
+    }
+
+    // Update controllers
     robomaster_controller_->update();
+    dcmotor_controller_->update();
 
     publishDiagnostics();
     telemetry_counter++;
