@@ -34,6 +34,11 @@ public:
     void handleParameterValue(const mavlink_message_t& msg);
     void handleCommandAck(const mavlink_message_t& msg);
 
+    // Specific telemetry message handlers
+    void handleAttitudeMessage(const mavlink_message_t& msg);
+    void handleServoOutputRawMessage(const mavlink_message_t& msg);
+    void handleLocalPositionMessage(const mavlink_message_t& msg);
+
     // Update function (called periodically)
     void update();
 

@@ -126,7 +126,7 @@ void RobomasterController::handleMotorTelemetry(const mavlink_message_t& /* msg 
 }
 
 void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
-    // Handle both STATUSTEXT (253) and proper ROBOMASTER_MOTOR_STATUS (181) messages
+    // Handle both STATUSTEXT (253) and proper ROBOMASTER_MOTOR_STATUS (12001) messages
     if (msg.msgid == MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS) {
         // Handle proper MAVLink motor status message
         mavlink_robomaster_motor_status_t motor_status;
@@ -136,20 +136,23 @@ void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
         ensureMotorExists(motor_status.motor_id);
         MotorData& motor = motors_[motor_status.motor_id];
 
-        // Update motor state from MAVLink message
-        motor.state.current_position_rad = motor_status.current_position;
-        motor.state.current_velocity_rps = motor_status.current_velocity;
-        motor.state.current_milliamps = motor_status.current_milliamps;
-        motor.state.temperature_celsius = motor_status.temperature;
-        motor.state.target_position_rad = motor_status.target_position;
-        motor.state.target_velocity_rps = motor_status.target_velocity;
-        motor.state.target_current_ma = motor_status.target_current;
+        // Update motor state from MAVLink message (new format)
+        motor.state.current_position_rad = motor_status.current_position_rad;
+        motor.state.current_velocity_rps = motor_status.current_speed_rad_s;
+        // Note: current_duty_cycle and position_error_rad are not available in ROS message
+        // These new fields from the updated MAVLink could be logged or used for diagnostics
         motor.state.control_mode = motor_status.control_mode;
-        motor.state.enabled = (motor_status.enabled == 1);
         motor.state.status = motor_status.status;
-        motor.state.error_count = motor_status.error_count;
-        motor.state.timeout_count = motor_status.timeout_count;
-        motor.state.overheat_count = motor_status.overheat_count;
+        // Set some defaults for missing fields in new format
+        motor.state.current_milliamps = 0.0;  // Not available in new format
+        motor.state.temperature_celsius = 0.0;  // Not available in new format
+        motor.state.target_position_rad = 0.0;  // Not directly available
+        motor.state.target_velocity_rps = 0.0;  // Not directly available
+        motor.state.target_current_ma = 0.0;  // Not available in new format
+        motor.state.enabled = true;  // Assume enabled if receiving status
+        motor.state.error_count = 0;  // Not available in new format
+        motor.state.timeout_count = 0;  // Not available in new format
+        motor.state.overheat_count = 0;  // Not available in new format
         motor.state.header.stamp = node_->get_clock()->now();
         motor.state.motor_id = motor_status.motor_id;
         motor.last_update = node_->get_clock()->now();
@@ -378,43 +381,60 @@ void RobomasterController::buildMotorControlMessage(const stm32_mavlink_interfac
         return;
     }
 
-    // Validate control mode
-    if (cmd.control_mode > 2) {
-        RCLCPP_ERROR(node_->get_logger(), "Invalid control mode: %d", cmd.control_mode);
+    // Validate control mode (0-4 are valid)
+    if (cmd.control_mode > 4) {
+        RCLCPP_ERROR(node_->get_logger(), "Invalid control mode: %d (valid range: 0-4)", cmd.control_mode);
         return;
     }
 
-    // Extract control value based on mode
-    float control_value = 0.0f;
+    // Prepare values for new message format
+    float duty_cycle = 0.0f;
+    float target_position_rad = 0.0f;
+    float target_speed_rad_s = 0.0f;
+    uint32_t timeout_ms = 1000;  // Default timeout
+
+    // Map control modes and values to new format
     switch (cmd.control_mode) {
-        case cmd.CONTROL_MODE_CURRENT:
-            control_value = static_cast<float>(cmd.target_current_ma);
+        case 0: // CONTROL_MODE_OPEN_LOOP (legacy CONTROL_MODE_CURRENT)
+            // For open loop control, convert current to duty cycle approximation
+            duty_cycle = static_cast<float>(cmd.target_current_ma) / 16000.0f;  // Normalize to -1.0 to 1.0
             break;
-        case cmd.CONTROL_MODE_VELOCITY:
-            control_value = cmd.target_velocity_rps;
+        case 1: // CONTROL_MODE_SPEED (legacy CONTROL_MODE_VELOCITY)
+            target_speed_rad_s = cmd.target_velocity_rps;
             break;
-        case cmd.CONTROL_MODE_POSITION:
-            control_value = cmd.target_position_rad;
+        case 2: // CONTROL_MODE_POSITION
+            target_position_rad = cmd.target_position_rad;
+            break;
+        case 3: // CONTROL_MODE_DISABLED
+            // Motor disabled - all values remain at defaults (zeros)
+            break;
+        case 4: // CONTROL_MODE_DUTY_TO_POSITION
+            // Use duty cycle from current field and position target
+            duty_cycle = static_cast<float>(cmd.target_current_ma) / 16000.0f;  // Duty cycle percentage
+            target_position_rad = cmd.target_position_rad;  // Position to stop at
+            timeout_ms = 5000;  // Longer timeout for positioning
             break;
         default:
             RCLCPP_ERROR(node_->get_logger(), "Unknown control mode: %d", cmd.control_mode);
             return;
     }
 
-    // Use proper MAVLink message building instead of manual construction
-    // This ensures correct MAVLink v2 format, sequence numbers, and checksum
-
-    // Use proper MAVLink message packing for custom message ID 180 with correct CRC_EXTRA
+    // Use proper MAVLink message building with new signature
+    // Function signature: target_system, target_component, motor_id, control_mode, duty_cycle, target_position_rad, target_speed_rad_s, timeout_ms
     mavlink_msg_robomaster_motor_control_pack(
         system_id, component_id, &msg,
+        target_system,          // target_system
+        1,                      // target_component
         cmd.motor_id,           // motor_id
         cmd.control_mode,       // control_mode
-        control_value,          // control_value
-        cmd.enabled ? 1 : 0     // enable
+        duty_cycle,             // duty_cycle
+        target_position_rad,    // target_position_rad
+        target_speed_rad_s,     // target_speed_rad_s
+        timeout_ms              // timeout_ms
     );
 
-    RCLCPP_INFO(node_->get_logger(), "Built motor control message: ID=%d, mode=%d, value=%.3f, enabled=%d",
-                 cmd.motor_id, cmd.control_mode, control_value, cmd.enabled);
+    RCLCPP_INFO(node_->get_logger(), "Built motor control message: ID=%d, mode=%d, duty=%.3f, pos=%.3f, vel=%.3f",
+                 cmd.motor_id, cmd.control_mode, duty_cycle, target_position_rad, target_speed_rad_s);
 }
 
 void RobomasterController::buildParameterSetMessage(uint8_t motor_id, const std::string& param_name, 

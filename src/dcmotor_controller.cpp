@@ -64,8 +64,13 @@ void DCMotorController::motorCommandCallback(const msg::DCMotorCommand::SharedPt
         return;
     }
 
-    RCLCPP_INFO(node_->get_logger(), "DC Motor command: ID=%d, mode=%d, value=%.3f, enabled=%s",
-               msg->motor_id, msg->control_mode, msg->target_value, msg->enabled ? "true" : "false");
+    if (msg->control_mode == 3) { // Duty-to-position control
+        RCLCPP_INFO(node_->get_logger(), "DC Motor duty-to-position command: ID=%d, duty=%.3f, target_pos=%.3f, enabled=%s",
+                   msg->motor_id, msg->target_value, msg->target_position_rad, msg->enabled ? "true" : "false");
+    } else {
+        RCLCPP_INFO(node_->get_logger(), "DC Motor command: ID=%d, mode=%d, value=%.3f, enabled=%s",
+                   msg->motor_id, msg->control_mode, msg->target_value, msg->enabled ? "true" : "false");
+    }
 
     // Add command to queue for MAVLink transmission
     pending_commands_.push(*msg);
@@ -97,15 +102,51 @@ bool DCMotorController::getMotorControlMessage(mavlink_message_t& msg, uint8_t s
     payload[6] = cmd.enabled ? 1 : 0;
     payload[7] = 0; // Reserved
 
-    // Create a generic MAVLink message with custom payload
-    mavlink_msg_command_long_pack(system_id, component_id, &msg,
-                                  target_system_id, 1,
-                                  31010, 0, // Custom command ID for DC motor control
-                                  cmd.motor_id, cmd.control_mode, cmd.target_value, cmd.enabled ? 1 : 0,
-                                  0, 0, 0);
+    // Map control mode to appropriate STM32 command ID
+    uint16_t command_id;
+    switch (cmd.control_mode) {
+        case 0: // Position control
+            command_id = 31012;
+            break;
+        case 1: // Velocity control
+            command_id = 31013;
+            break;
+        case 2: // Current/torque control
+            command_id = 31014;
+            break;
+        case 3: // Duty-to-position control
+            command_id = 31015;
+            break;
+        default:
+            RCLCPP_WARN(node_->get_logger(), "Unknown control mode: %d, using position control", cmd.control_mode);
+            command_id = 31012;
+            break;
+    }
 
-    RCLCPP_INFO(node_->get_logger(), "Sending DC motor control command: ID=%d, mode=%d, value=%.3f",
-               cmd.motor_id, cmd.control_mode, cmd.target_value);
+    // Create MAVLink command with appropriate ID and parameters
+    if (cmd.control_mode == 3) { // Duty-to-position control
+        // For duty-to-position: param1=motor_id, param2=duty_cycle, param3=target_position_rad
+        mavlink_msg_command_long_pack(system_id, component_id, &msg,
+                                      target_system_id, 1,
+                                      command_id, 0,
+                                      cmd.motor_id, cmd.target_value, cmd.target_position_rad, cmd.enabled ? 1 : 0,
+                                      0, 0, 0);
+    } else {
+        // Standard control modes
+        mavlink_msg_command_long_pack(system_id, component_id, &msg,
+                                      target_system_id, 1,
+                                      command_id, 0,
+                                      cmd.motor_id, cmd.target_value, cmd.enabled ? 1 : 0, 0,
+                                      0, 0, 0);
+    }
+
+    if (cmd.control_mode == 3) { // Duty-to-position control
+        RCLCPP_INFO(node_->get_logger(), "Sending DC motor duty-to-position command: ID=%d, duty=%.3f, target_pos=%.3f",
+                   cmd.motor_id, cmd.target_value, cmd.target_position_rad);
+    } else {
+        RCLCPP_INFO(node_->get_logger(), "Sending DC motor control command: ID=%d, mode=%d, value=%.3f",
+                   cmd.motor_id, cmd.control_mode, cmd.target_value);
+    }
 
     return true;
 }
@@ -163,9 +204,20 @@ void DCMotorController::handleMotorStatus(const mavlink_message_t& msg) {
 }
 
 void DCMotorController::handleMotorTelemetry(const mavlink_message_t& msg) {
-    // Handle specific DC motor telemetry messages
-    // For now, we rely on status text messages
-    RCLCPP_DEBUG(node_->get_logger(), "Received DC motor telemetry message ID: %d", msg.msgid);
+    switch (msg.msgid) {
+        case MAVLINK_MSG_ID_ATTITUDE:
+            handleAttitudeMessage(msg);
+            break;
+        case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:
+            handleServoOutputRawMessage(msg);
+            break;
+        case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
+            handleLocalPositionMessage(msg);
+            break;
+        default:
+            RCLCPP_DEBUG(node_->get_logger(), "Received unhandled DC motor telemetry message ID: %d", msg.msgid);
+            break;
+    }
 }
 
 void DCMotorController::handleParameterValue(const mavlink_message_t& msg) {
@@ -283,12 +335,76 @@ void DCMotorController::parseMotorStatusText(const std::string& status_text) {
     }
 }
 
+void DCMotorController::handleAttitudeMessage(const mavlink_message_t& msg) {
+    mavlink_attitude_t attitude;
+    mavlink_msg_attitude_decode(&msg, &attitude);
+
+    // Extract position and velocity data as sent by STM32
+    // roll = current position, pitch = target position, rollspeed = current velocity
+    current_state_.position_rad = attitude.roll;
+    current_state_.velocity_rad_s = attitude.rollspeed;
+
+    // Update connection status
+    last_motor_update_ = node_->now();
+    motor_connected_ = true;
+
+    RCLCPP_DEBUG(node_->get_logger(),
+                "DC Motor attitude: pos=%.3f rad, target=%.3f rad, vel=%.3f rad/s",
+                attitude.roll, attitude.pitch, attitude.rollspeed);
+}
+
+void DCMotorController::handleServoOutputRawMessage(const mavlink_message_t& msg) {
+    mavlink_servo_output_raw_t servo_output;
+    mavlink_msg_servo_output_raw_decode(&msg, &servo_output);
+
+    // Extract motor status data as sent by STM32
+    // port = motor_id, servo1_raw = current duty, servo2_raw = target duty
+    // servo3_raw = enabled, servo4_raw = mode, servo5_raw = status
+    if (servo_output.port == DC_MOTOR_ID) {
+        // Convert duty cycle back from encoded format (0-2000 -> -1.0 to +1.0)
+        current_state_.current_duty_cycle = (servo_output.servo1_raw / 1000.0f) - 1.0f;
+        current_state_.target_duty_cycle = (servo_output.servo2_raw / 1000.0f) - 1.0f;
+
+        current_state_.enabled = (servo_output.servo3_raw > 1500); // > 1.5 means enabled
+        current_state_.control_mode = servo_output.servo4_raw / 500; // Decode mode
+        current_state_.status = servo_output.servo5_raw / 200; // Decode status
+
+        // Update connection status
+        last_motor_update_ = node_->now();
+        motor_connected_ = true;
+
+        RCLCPP_DEBUG(node_->get_logger(),
+                    "DC Motor servo output: duty=%.3f, target_duty=%.3f, enabled=%d, mode=%d, status=%d",
+                    current_state_.current_duty_cycle, current_state_.target_duty_cycle,
+                    current_state_.enabled, current_state_.control_mode, current_state_.status);
+    }
+}
+
+void DCMotorController::handleLocalPositionMessage(const mavlink_message_t& msg) {
+    mavlink_local_position_ned_t local_pos;
+    mavlink_msg_local_position_ned_decode(&msg, &local_pos);
+
+    // Extract velocity data as sent by STM32
+    // x = current speed, y = target speed
+    current_state_.velocity_rad_s = local_pos.x;
+    current_state_.target_velocity_rad_s = local_pos.y;
+
+    // Update connection status
+    last_motor_update_ = node_->now();
+    motor_connected_ = true;
+
+    RCLCPP_DEBUG(node_->get_logger(),
+                "DC Motor local position: vel=%.3f rad/s, target_vel=%.3f rad/s",
+                local_pos.x, local_pos.y);
+}
+
 uint8_t DCMotorController::mapControlMode(uint8_t ros_mode) {
     // Map ROS control modes to STM32 control modes
     switch (ros_mode) {
         case 0: return 2; // Position control
         case 1: return 1; // Velocity control
         case 2: return 0; // Current control
+        case 3: return 4; // Duty-to-position control
         default: return 2; // Default to position control
     }
 }

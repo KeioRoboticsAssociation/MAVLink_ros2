@@ -10,7 +10,7 @@
 #include "stm32_mavlink_interface/msg/robomaster_motor_config.hpp"
 #include "stm32_mavlink_interface/srv/set_robomaster_motor_config.hpp"
 #include "stm32_mavlink_interface/srv/get_robomaster_motor_config.hpp"
-#include "mavlink/c_library_v2_robomaster/robomaster/mavlink.h"
+#include "mavlink/c_library_v2_robomaster/robomaster_motor/mavlink.h"
 
 namespace stm32_mavlink_interface {
 
@@ -110,10 +110,8 @@ private:
     void parametersToConfig(uint8_t motor_id, stm32_mavlink_interface::msg::RobomasterMotorConfig& config);
     
     // Custom MAVLink message IDs are now defined in the generated library
-    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL = 180
-    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS = 181
-    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONFIG = 182
-    // MAVLINK_MSG_ID_ROBOMASTER_TELEMETRY = 183
+    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL = 12000
+    // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS = 12001
 };
 
 } // namespace stm32_mavlink_interface
