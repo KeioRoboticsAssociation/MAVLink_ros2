@@ -57,8 +57,7 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
             servo_states_[i].initialized = true;  // Mark as initialized
             servo_states_[i].enabled = true;
             servo_states_[i].status = 0; // OK
-            float normalized = servo_values[i] / 2000.0f;
-            servo_states_[i].current_angle_deg = normalized * 360.0f - 180.0f;
+            servo_states_[i].current_angle_deg = ((servo_values[i] - 500.0f) / 1500.0f) * 120.0f - 60.0f;
         } else {
             servo_states_[i].initialized = true;  // Mark as initialized even if error
             servo_states_[i].enabled = false;
@@ -86,16 +85,16 @@ void ServoController::handleManualControl(const mavlink_manual_control_t& manual
     
     // Map manual control to first 4 servos (X, Y, Z, R axes)
     if (servo_states_.size() > 0) {
-        servo_states_[0].target_angle_deg = (manual.x / 1000.0f) * 180.0f;
+        servo_states_[0].target_angle_deg = (manual.x / 1000.0f) * 60.0f;
     }
     if (servo_states_.size() > 1) {
-        servo_states_[1].target_angle_deg = (manual.y / 1000.0f) * 180.0f;
+        servo_states_[1].target_angle_deg = (manual.y / 1000.0f) * 60.0f;
     }
     if (servo_states_.size() > 2) {
-        servo_states_[2].target_angle_deg = (manual.z / 1000.0f) * 180.0f;
+        servo_states_[2].target_angle_deg = (manual.z / 1000.0f) * 60.0f;
     }
     if (servo_states_.size() > 3) {
-        servo_states_[3].target_angle_deg = (manual.r / 1000.0f) * 180.0f;
+        servo_states_[3].target_angle_deg = (manual.r / 1000.0f) * 60.0f;
     }
 }
 
@@ -110,8 +109,7 @@ void ServoController::handleRCChannelsOverride(const mavlink_rc_channels_overrid
     for (size_t i = 0; i < 8 && i < servo_states_.size(); i++) {
         if (channels[i] != UINT16_MAX && channels[i] <= 2000) {
             servo_states_[i].pulse_us = channels[i];
-            float normalized = channels[i] / 2000.0f;
-            servo_states_[i].target_angle_deg = normalized * 360.0f - 180.0f;
+            servo_states_[i].target_angle_deg = ((channels[i] - 500.0f) / 1500.0f) * 120.0f - 60.0f;
         }
     }
 }
@@ -123,16 +121,16 @@ bool ServoController::getManualControlMessage(mavlink_message_t& msg, uint8_t sy
     int16_t x = 0, y = 0, z = 0, r = 0;
     
     if (servo_states_.size() > 0) {
-        x = static_cast<int16_t>((servo_states_[0].target_angle_deg / 180.0f) * 1000.0f);
+        x = static_cast<int16_t>((servo_states_[0].target_angle_deg / 60.0f) * 1000.0f);
     }
     if (servo_states_.size() > 1) {
-        y = static_cast<int16_t>((servo_states_[1].target_angle_deg / 180.0f) * 1000.0f);
+        y = static_cast<int16_t>((servo_states_[1].target_angle_deg / 60.0f) * 1000.0f);
     }
     if (servo_states_.size() > 2) {
-        z = static_cast<int16_t>((servo_states_[2].target_angle_deg / 180.0f) * 1000.0f);
+        z = static_cast<int16_t>((servo_states_[2].target_angle_deg / 60.0f) * 1000.0f);
     }
     if (servo_states_.size() > 3) {
-        r = static_cast<int16_t>((servo_states_[3].target_angle_deg / 180.0f) * 1000.0f);
+        r = static_cast<int16_t>((servo_states_[3].target_angle_deg / 60.0f) * 1000.0f);
     }
     
     mavlink_msg_manual_control_pack(system_id, component_id, &msg,
@@ -154,8 +152,8 @@ bool ServoController::getRCOverrideMessage(mavlink_message_t& msg, uint8_t syste
             uint16_t pulse_to_send = servo_states_[i].pulse_us;
 
             if (pulse_to_send == 0) {
-                // Default to center position if no pulse is set
-                pulse_to_send = 1000;
+                // Default to center position if no pulse is set (0° = 1250μs)
+                pulse_to_send = 1250;
             }
 
             channels[i] = pulse_to_send;
@@ -164,8 +162,8 @@ bool ServoController::getRCOverrideMessage(mavlink_message_t& msg, uint8_t syste
             // Debug logging every 50 cycles (reduce spam)
             static int debug_counter = 0;
             if (debug_counter++ % 50 == 0) {
-                std::cout << "Servo " << (i+1) << ": sending PWM=" << pulse_to_send
-                         << "μs, target_angle=" << servo_states_[i].target_angle_deg << "°" << std::endl;
+                std::cout << "Servo " << (1) << ": sending PWM=" << pulse_to_send
+                         << "μs, target_angle=" << servo_states_[0].target_angle_deg << "°" << std::endl;
             }
         }
     }
@@ -194,18 +192,19 @@ void ServoController::servoCommandCallback(const stm32_mavlink_interface::msg::S
         if (msg->pulse_us > 0) {
             // Direct PWM control - preserve exact user value
             servo_states_[idx].pulse_us = msg->pulse_us;
-            // Convert PWM back to angle: 0μs = -180°, 1000μs = 0°, 2000μs = +180°
-            servo_states_[idx].target_angle_deg = ((msg->pulse_us / 2000.0f) * 360.0f) - 180.0f;
+            // Convert PWM back to angle: 500μs = -60°, 1250μs = 0°, 2000μs = +60°
+            servo_states_[idx].target_angle_deg = ((msg->pulse_us - 500.0f) / 1500.0f) * 120.0f - 60.0f;
         } else {
             // Angle control - convert to PWM preserving user's exact angle intent
             servo_states_[idx].target_angle_deg = msg->angle_deg;
 
-            // Convert angle to PWM for 360° servo (-180° to +180°)
-            // New mapping: -180° = 0μs, 0° = 1000μs, +180° = 2000μs
-            // PWM = ((angle + 180) / 360) * 2000
-            servo_states_[idx].pulse_us = static_cast<uint16_t>(((msg->angle_deg + 180.0f) / 360.0f) * 2000.0f);
+            // Convert angle to PWM for 120° servo (-60° to +60°)
+            // New mapping: -60° = 500μs, 0° = 1250μs, +60° = 2000μs
+            // PWM = ((angle + 60) / 120) * 1500 + 500
+            servo_states_[idx].pulse_us = static_cast<uint16_t>(((msg->angle_deg + 60.0f) / 120.0f) * 1500.0f + 500.0f);
 
-            // Ensure PWM stays in valid range (0-2000μs)
+            // Ensure PWM stays in valid range (500-2000μs)
+            if (servo_states_[idx].pulse_us < 500) servo_states_[idx].pulse_us = 500;
             if (servo_states_[idx].pulse_us > 2000) servo_states_[idx].pulse_us = 2000;
         }
 

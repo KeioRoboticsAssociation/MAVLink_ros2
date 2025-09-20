@@ -361,11 +361,11 @@ void DCMotorController::handleServoOutputRawMessage(const mavlink_message_t& msg
     // port = motor_id, servo1_raw = current duty, servo2_raw = target duty
     // servo3_raw = enabled, servo4_raw = mode, servo5_raw = status
     if (servo_output.port == DC_MOTOR_ID) {
-        // Convert duty cycle back from encoded format (0-2000 -> -1.0 to +1.0)
-        current_state_.current_duty_cycle = (servo_output.servo1_raw / 1000.0f) - 1.0f;
-        current_state_.target_duty_cycle = (servo_output.servo2_raw / 1000.0f) - 1.0f;
+        // Convert duty cycle back from encoded format (500-2000 -> -1.0 to +1.0)
+        current_state_.current_duty_cycle = ((servo_output.servo1_raw - 1250.0f) / 750.0f);
+        current_state_.target_duty_cycle = ((servo_output.servo2_raw - 1250.0f) / 750.0f);
 
-        current_state_.enabled = (servo_output.servo3_raw > 1500); // > 1.5 means enabled
+        current_state_.enabled = (servo_output.servo3_raw > 1250); // > 1.25 means enabled (new neutral)
         current_state_.control_mode = servo_output.servo4_raw / 500; // Decode mode
         current_state_.status = servo_output.servo5_raw / 200; // Decode status
 
