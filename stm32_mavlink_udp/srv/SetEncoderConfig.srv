@@ -1,0 +1,14 @@
+# Request
+uint8 encoder_id
+uint16 cpr
+bool invert_a
+bool invert_b
+bool use_z
+uint32 watchdog_timeout_ms
+int32 offset_counts
+bool wrap_around
+bool save_to_flash
+---
+# Response
+bool success
+string message

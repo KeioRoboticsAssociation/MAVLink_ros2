@@ -1,0 +1,54 @@
+# UDP MAVLink Configuration
+# This file provides default configuration for the STM32 MAVLink UDP interface
+
+mavlink_udp_node:
+  ros__parameters:
+    # Network Configuration
+    local_host: "0.0.0.0"        # Bind to all interfaces
+    local_port: 14550            # Standard MAVLink UDP port
+    remote_host: "192.168.1.100" # Target device IP
+    remote_port: 14551           # Target device port
+    is_server_mode: true         # Auto-detect remote from incoming packets
+
+    # MAVLink Configuration
+    system_id: 255               # GCS system ID
+    component_id: 1              # Component ID
+    target_system_id: 1          # Target system (STM32)
+    target_component_id: 1       # Target component
+
+    # Performance Settings (inherited from controllers)
+    telemetry_rate_hz: 10        # Telemetry update rate
+    heartbeat_rate_hz: 1         # Heartbeat rate
+
+    # Timeout Settings
+    connection_timeout_ms: 5000  # Connection timeout
+    packet_timeout_ms: 1000      # Individual packet timeout
+
+# Example configurations for different scenarios:
+
+# Client Mode (Fixed Remote Address)
+# mavlink_udp_node:
+#   ros__parameters:
+#     local_host: "0.0.0.0"
+#     local_port: 14550
+#     remote_host: "192.168.1.100"  # Fixed target
+#     remote_port: 14551
+#     is_server_mode: false           # Use fixed remote address
+
+# WiFi ESP32 Module
+# mavlink_udp_node:
+#   ros__parameters:
+#     local_host: "0.0.0.0"
+#     local_port: 14550
+#     remote_host: "192.168.4.1"     # ESP32 AP mode default
+#     remote_port: 14550
+#     is_server_mode: false
+
+# Simulation/SITL
+# mavlink_udp_node:
+#   ros__parameters:
+#     local_host: "127.0.0.1"
+#     local_port: 14550
+#     remote_host: "127.0.0.1"
+#     remote_port: 14560              # SITL default
+#     is_server_mode: false
