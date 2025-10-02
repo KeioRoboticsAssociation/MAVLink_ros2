@@ -1,419 +1,420 @@
-# STM32 MAVLink ROS2 System
+# STM32 MAVLink ROS2 システム
 
-A comprehensive ROS2 Jazzy workspace for MAVLink-based STM32 device communication, providing both serial (UART) and network (UDP) interfaces with a professional GUI management tool.
+MAVLinkベースのSTM32デバイス通信のための包括的なROS2 Jazzyワークスペース。シリアル(UART)とネットワーク(UDP)の両方のインターフェースを提供し、プロフェッショナルなGUI管理ツールを備えています。
 
-## Overview
+## 概要
 
-This system enables bidirectional communication between ROS2 and STM32 microcontrollers using the MAVLink protocol. It supports multiple device types including servos, encoders, RoboMaster motors (CAN-based), and DC motors with advanced control features.
+本システムは、MAVLinkプロトコルを使用してROS2とSTM32マイクロコントローラー間の双方向通信を実現します。サーボ、エンコーダ、RoboMasterモーター(CANベース)、高度な制御機能を持つDCモーターなど、複数のデバイスタイプをサポートしています。
 
-## Architecture
+## アーキテクチャ
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Applications Layer                          │
+│                         アプリケーション層                           │
 │  ┌──────────────────┐  ┌──────────────┐  ┌────────────────────┐   │
-│  │ mavlink_wizard   │  │   seiretu    │  │  Custom Apps       │   │
-│  │ (GUI Manager)    │  │ (Robot Ctrl) │  │  (Your Code)       │   │
+│  │ mavlink_wizard   │  │   seiretu    │  │  カスタムアプリ     │   │
+│  │ (GUI管理ツール)  │  │ (ロボット制御)│  │  (ユーザーコード)   │   │
 │  └──────────────────┘  └──────────────┘  └────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
                               ▲ ▼
-                    ROS2 Topics & Services
+                    ROS2 トピック & サービス
                               ▲ ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Communication Interfaces                         │
+│                    通信インターフェース                              │
 │  ┌──────────────────────────────┐  ┌──────────────────────────┐   │
 │  │  stm32_mavlink_uart          │  │  stm32_mavlink_udp       │   │
-│  │  (Serial/UART Interface)     │  │  (Network/UDP Interface) │   │
-│  │  - /dev/ttyUSB*, ttyACM*     │  │  - WiFi/Ethernet         │   │
-│  │  - 115200 baud default       │  │  - Port 14550 default    │   │
+│  │  (シリアル/UARTインターフェース)│  │  (ネットワーク/UDP      │   │
+│  │  - /dev/ttyUSB*, ttyACM*     │  │   インターフェース)      │   │
+│  │  - デフォルト115200 baud      │  │  - WiFi/Ethernet         │   │
+│  │                              │  │  - デフォルトポート14550  │   │
 │  └──────────────────────────────┘  └──────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
                               ▲ ▼
-                         MAVLink Protocol
+                         MAVLink プロトコル
                               ▲ ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Hardware Layer                              │
+│                         ハードウェア層                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │   Servos    │  │  DC Motors   │  │  Encoders    │              │
-│  │  (16 max)   │  │  (Position,  │  │  (16 max)    │              │
-│  │             │  │   Velocity,  │  │              │              │
-│  │             │  │   Current)   │  │              │              │
+│  │   サーボ    │  │  DCモーター  │  │  エンコーダ  │              │
+│  │  (最大16)   │  │  (位置制御,  │  │  (最大16)    │              │
+│  │             │  │   速度制御,  │  │              │              │
+│  │             │  │   電流制御)  │  │              │              │
 │  └─────────────┘  └──────────────┘  └──────────────┘              │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────┐              │
-│  │         RoboMaster Motors (CAN Bus)             │              │
-│  │  GM6020, M3508, etc. (8 motors max)            │              │
+│  │         RoboMaster モーター (CANバス)           │              │
+│  │  GM6020, M3508等 (最大8モーター)               │              │
 │  └─────────────────────────────────────────────────┘              │
 │                                                                     │
 │                      STM32F446RE                                    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Package Structure
+## パッケージ構成
 
-### Core Communication Packages
+### コア通信パッケージ
 
-#### 1. **stm32_mavlink_uart** - Serial/UART Interface
-- Direct serial communication with STM32 devices via UART
-- Default configuration: 115200 baud, 8N1
-- Supports USB-to-Serial (ttyUSB*) and USB CDC (ttyACM*) devices
-- Real-time telemetry at 10Hz
-- See [stm32_mavlink_uart/README.md](stm32_mavlink_uart/README.md) for details
+#### 1. **stm32_mavlink_uart** - シリアル/UARTインターフェース
+- UART経由でSTM32デバイスと直接シリアル通信
+- デフォルト設定: 115200ボー、8N1
+- USB-to-Serial (ttyUSB*) およびUSB CDC (ttyACM*) デバイスをサポート
+- 10Hzでリアルタイムテレメトリ
+- 詳細は [stm32_mavlink_uart/README.md](stm32_mavlink_uart/README.md) を参照
 
-#### 2. **stm32_mavlink_udp** - Network/UDP Interface
-- Wireless communication over WiFi/Ethernet
-- Server mode (auto-detect remote) and client mode (fixed remote)
-- Compatible with ESP32, Raspberry Pi, and network-enabled microcontrollers
-- Drop-in replacement for serial interface - same topics/services
-- Default port: 14550
-- See [stm32_mavlink_udp/README.md](stm32_mavlink_udp/README.md) for details
+#### 2. **stm32_mavlink_udp** - ネットワーク/UDPインターフェース
+- WiFi/Ethernet経由でのワイヤレス通信
+- サーバーモード(リモート自動検出)およびクライアントモード(固定リモート)
+- ESP32、Raspberry Pi、ネットワーク対応マイクロコントローラーと互換性あり
+- シリアルインターフェースの代替として利用可能 - 同じトピック/サービス
+- デフォルトポート: 14550
+- 詳細は [stm32_mavlink_udp/README.md](stm32_mavlink_udp/README.md) を参照
 
-#### 3. **mavlink_SDK** - Shared MAVLink Headers
-- Unified MAVLink C library v2 headers
-- Includes standard messages (common, minimal, standard)
-- Custom message support (robomaster, robomaster_motor)
-- Shared by both UART and UDP interfaces
-- **Not built by ROS2** (contains COLCON_IGNORE)
+#### 3. **mavlink_SDK** - 共有MAVLinkヘッダー
+- 統一されたMAVLink C ライブラリv2ヘッダー
+- 標準メッセージを含む(common、minimal、standard)
+- カスタムメッセージサポート(robomaster、robomaster_motor)
+- UARTとUDP両方のインターフェースで共有
+- **ROS2ではビルドされない** (COLCON_IGNORE を含む)
 
-### Application Layer
+### アプリケーション層
 
-#### 4. **mavlink_wizard** - Device Management GUI
-- PyQt5-based GUI similar to Dynamixel Wizard
-- Features:
-  - Automatic device discovery
-  - Real-time monitoring and plotting
-  - Parameter configuration with validation
-  - Calibration wizards for servos and encoders
-  - Firmware management
-- See [mavlink_wizard/README.md](mavlink_wizard/README.md) for details
+#### 4. **mavlink_wizard** - デバイス管理GUI
+- Dynamixel Wizardに類似したPyQt5ベースのGUI
+- 機能:
+  - 自動デバイス検出
+  - リアルタイムモニタリングとプロット
+  - バリデーション付きパラメーター設定
+  - サーボとエンコーダのキャリブレーションウィザード
+  - ファームウェア管理
+- 詳細は [mavlink_wizard/README.md](mavlink_wizard/README.md) を参照
 
-## Supported Devices
+## サポートデバイス
 
-### Servo Motors
-- **Count**: Up to 16 servos
-- **Control**: Angle-based positioning (-180° to +180°)
-- **Features**: Configurable limits, speed control, enable/disable
-- **Topics**: `/servo/command`, `/servo/states`
+### サーボモーター
+- **数量**: 最大16個のサーボ
+- **制御**: 角度ベースの位置決め(-180° ～ +180°)
+- **機能**: 設定可能な制限、速度制御、有効/無効化
+- **トピック**: `/servo/command`, `/servo/states`
 
-### DC Motors
-- **Motor ID**: 10 (dedicated)
-- **Control Modes**:
-  - Position control (rad)
-  - Velocity control (rad/s)
-  - Current control (A)
-  - Duty-to-position control (duty cycle + target position)
-- **Advanced Features**:
-  - Cascade PID control (separate speed and position loops)
-  - Configurable limits and safety monitoring
-  - Real-time temperature and current monitoring
-- **Topics**: `/dcmotor/command`, `/dcmotor/state`
+### DCモーター
+- **モーターID**: 10 (専用)
+- **制御モード**:
+  - 位置制御 (rad)
+  - 速度制御 (rad/s)
+  - 電流制御 (A)
+  - デューティ位置制御 (デューティサイクル + 目標位置)
+- **高度な機能**:
+  - カスケードPID制御(速度と位置の独立したループ)
+  - 設定可能な制限と安全監視
+  - リアルタイム温度・電流監視
+- **トピック**: `/dcmotor/command`, `/dcmotor/state`
 
-### RoboMaster Motors (CAN)
-- **Count**: Up to 8 motors
-- **Supported Models**: GM6020, M3508, etc.
-- **Control Modes**: Current, velocity, position
-- **Communication**: CAN bus via STM32
-- **Custom MAVLink**: Message ID 180-183
-- **Topics**: `/robomaster/motor_command`, `/robomaster/motor_state`
+### RoboMaster モーター (CAN)
+- **数量**: 最大8モーター
+- **サポートモデル**: GM6020、M3508等
+- **制御モード**: 電流、速度、位置
+- **通信**: STM32経由のCANバス
+- **カスタムMAVLink**: メッセージID 180-183
+- **トピック**: `/robomaster/motor_command`, `/robomaster/motor_state`
 
-### Encoders
-- **Count**: Up to 16 encoders
-- **Data**: Position (rad), velocity (rad/s)
-- **Features**: Position reset, configuration management
-- **Topics**: `/encoder/states`
+### エンコーダ
+- **数量**: 最大16個のエンコーダ
+- **データ**: 位置 (rad)、速度 (rad/s)
+- **機能**: 位置リセット、設定管理
+- **トピック**: `/encoder/states`
 
-## Quick Start
+## クイックスタート
 
-### Installation
+### インストール
 
 ```bash
-# Clone the workspace (if not already done)
+# ワークスペースをクローン(まだの場合)
 cd ~/ros2_jazzy
 source /opt/ros/jazzy/setup.bash
 
-# Install dependencies
+# 依存関係をインストール
 sudo apt update
 sudo apt install ros-jazzy-diagnostic-msgs ros-jazzy-sensor-msgs \
                  ros-jazzy-geometry-msgs python3-pyqt5
 
-# Build all packages
+# 全パッケージをビルド
 colcon build --packages-select stm32_mavlink_uart stm32_mavlink_udp mavlink_wizard
 source install/setup.bash
 
-# Add user to dialout group for serial port access
+# シリアルポートアクセス用にユーザーをdialoutグループに追加
 sudo usermod -a -G dialout $USER
-# Log out and log back in for group changes to take effect
+# グループ変更を反映するため、ログアウトして再ログイン
 ```
 
-### Basic Usage
+### 基本的な使い方
 
-#### Serial (UART) Communication
+#### シリアル (UART) 通信
 
 ```bash
-# Launch UART interface with auto-detected serial port
+# 自動検出されたシリアルポートでUARTインターフェースを起動
 ros2 launch stm32_mavlink_uart stm32_interface.launch.py
 
-# Launch with specific serial port
+# 特定のシリアルポートで起動
 ros2 launch stm32_mavlink_uart stm32_interface.launch.py \
     serial_port:=/dev/ttyUSB0 baud_rate:=115200
 
-# Launch with GUI manager
+# GUI管理ツールと共に起動
 ros2 launch mavlink_wizard mavlink_wizard.launch.py
 ```
 
-#### Network (UDP) Communication
+#### ネットワーク (UDP) 通信
 
 ```bash
-# Launch UDP interface in server mode (auto-detect remote)
+# サーバーモード(リモート自動検出)でUDPインターフェースを起動
 ros2 launch stm32_mavlink_udp stm32_udp.launch.py
 
-# Connect to ESP32 WiFi module
+# ESP32 WiFiモジュールに接続
 ros2 launch stm32_mavlink_udp stm32_udp.launch.py \
     remote_host:=192.168.4.1 remote_port:=14550 is_server_mode:=false
 
-# Launch with GUI manager (UDP backend)
+# GUI管理ツールと共に起動 (UDPバックエンド)
 ros2 launch mavlink_wizard mavlink_wizard.launch.py
 ```
 
-### Command Examples
+### コマンド例
 
-#### Servo Control
+#### サーボ制御
 ```bash
-# Move servo 1 to 45 degrees
+# サーボ1を45度に移動
 ros2 topic pub /servo/command stm32_mavlink_uart/msg/ServoCommand \
     "{servo_id: 1, angle_deg: 45.0, enabled: true}" --once
 
-# Monitor servo states
+# サーボ状態を監視
 ros2 topic echo /servo/states
 ```
 
-#### DC Motor Control
+#### DCモーター制御
 ```bash
-# Position control: move to 1.57 radians (90 degrees)
+# 位置制御: 1.57ラジアン(90度)に移動
 ros2 topic pub /dcmotor/command stm32_mavlink_uart/msg/DCMotorCommand \
     "{motor_id: 10, control_mode: 0, target_value: 1.57, enabled: true}" --once
 
-# Velocity control: 5 rad/s
+# 速度制御: 5 rad/s
 ros2 topic pub /dcmotor/command stm32_mavlink_uart/msg/DCMotorCommand \
     "{motor_id: 10, control_mode: 1, target_value: 5.0, enabled: true}" --once
 
-# Duty-to-position: 80% duty to reach 180 degrees
+# デューティ位置制御: 80%デューティで180度到達
 ros2 topic pub /dcmotor/command stm32_mavlink_uart/msg/DCMotorCommand \
     "{motor_id: 10, control_mode: 3, target_value: 0.8, target_position_rad: 3.14, enabled: true}" --once
 ```
 
-#### RoboMaster Motor Control
+#### RoboMaster モーター制御
 ```bash
-# Velocity control: 10 RPS
+# 速度制御: 10 RPS
 ros2 topic pub /robomaster/motor_command stm32_mavlink_uart/msg/RobomasterMotorCommand \
     "{motor_id: 1, control_mode: 1, target_velocity_rps: 10.0, enabled: true}" --once
 
-# Monitor motor state
+# モーター状態を監視
 ros2 topic echo /robomaster/motor_state
 ```
 
-## ROS2 Topics & Services
+## ROS2 トピック & サービス
 
-### Common Topics (Both UART and UDP)
+### 共通トピック (UART と UDP 両方)
 
-**Published:**
-- `/servo/states` - Servo positions and status
-- `/encoder/states` - Encoder positions and velocities
-- `/robomaster/motor_state` - RoboMaster motor feedback
-- `/dcmotor/state` - DC motor status and telemetry
-- `/diagnostics` - System diagnostics
+**パブリッシュ:**
+- `/servo/states` - サーボ位置と状態
+- `/encoder/states` - エンコーダ位置と速度
+- `/robomaster/motor_state` - RoboMaster モーターフィードバック
+- `/dcmotor/state` - DCモーター状態とテレメトリ
+- `/diagnostics` - システム診断
 
-**Subscribed:**
-- `/servo/command` - Servo control commands
-- `/robomaster/motor_command` - RoboMaster motor commands
-- `/dcmotor/command` - DC motor commands
+**サブスクライブ:**
+- `/servo/command` - サーボ制御コマンド
+- `/robomaster/motor_command` - RoboMaster モーターコマンド
+- `/dcmotor/command` - DCモーターコマンド
 
-### Services
+### サービス
 
-**Servo:**
-- `/servo/set_config` - Configure servo parameters
+**サーボ:**
+- `/servo/set_config` - サーボパラメーター設定
 
-**Encoder:**
-- `/encoder/set_config` - Configure encoder parameters
-- `/encoder/reset_position` - Reset encoder position to zero
+**エンコーダ:**
+- `/encoder/set_config` - エンコーダパラメーター設定
+- `/encoder/reset_position` - エンコーダ位置をゼロにリセット
 
-**DC Motor:**
-- `/set_dcmotor_config` - Configure PID parameters and limits
-- `/get_dcmotor_config` - Retrieve current configuration
+**DCモーター:**
+- `/set_dcmotor_config` - PIDパラメーターと制限値を設定
+- `/get_dcmotor_config` - 現在の設定を取得
 
 **RoboMaster:**
-- `/set_robomaster_motor_config` - Configure motor parameters
-- `/get_robomaster_motor_config` - Retrieve current configuration
+- `/set_robomaster_motor_config` - モーターパラメーター設定
+- `/get_robomaster_motor_config` - 現在の設定を取得
 
-## Configuration Files
+## 設定ファイル
 
-### UART Interface
+### UARTインターフェース
 - `stm32_mavlink_uart/config/serial_config.yaml`
-  - Serial port, baud rate, timeout settings
-  - MAVLink system/component IDs
+  - シリアルポート、ボーレート、タイムアウト設定
+  - MAVLinkシステム/コンポーネントID
 
-### UDP Interface
+### UDPインターフェース
 - `stm32_mavlink_udp/config/udp_config.yaml`
-  - Network addresses and ports
-  - Server/client mode settings
-  - MAVLink system/component IDs
+  - ネットワークアドレスとポート
+  - サーバー/クライアントモード設定
+  - MAVLinkシステム/コンポーネントID
 
-### GUI Manager
+### GUI管理ツール
 - `mavlink_wizard/config/wizard_config.yaml`
-  - GUI layout and appearance
-  - Device parameter definitions
-  - Plotting and visualization settings
+  - GUIレイアウトと外観
+  - デバイスパラメーター定義
+  - プロットと可視化設定
 
-## Development
+## 開発
 
-### Building Individual Packages
+### 個別パッケージのビルド
 
 ```bash
-# Build only UART interface
+# UARTインターフェースのみビルド
 colcon build --packages-select stm32_mavlink_uart
 
-# Build only UDP interface
+# UDPインターフェースのみビルド
 colcon build --packages-select stm32_mavlink_udp
 
-# Build GUI manager
+# GUI管理ツールのみビルド
 colcon build --packages-select mavlink_wizard
 
-# Build all with dependencies
+# 依存関係を含めて全てビルド
 colcon build --packages-up-to mavlink_wizard
 ```
 
-### Adding Custom Applications
+### カスタムアプリケーションの追加
 
-Your custom application should depend on either `stm32_mavlink_uart` or `stm32_mavlink_udp`:
+カスタムアプリケーションは `stm32_mavlink_uart` または `stm32_mavlink_udp` に依存する必要があります:
 
 ```xml
 <!-- package.xml -->
-<depend>stm32_mavlink_uart</depend>  <!-- For serial communication -->
-<!-- OR -->
-<depend>stm32_mavlink_udp</depend>   <!-- For network communication -->
+<depend>stm32_mavlink_uart</depend>  <!-- シリアル通信用 -->
+<!-- または -->
+<depend>stm32_mavlink_udp</depend>   <!-- ネットワーク通信用 -->
 ```
 
 ```python
-# Python example
+# Python 例
 from stm32_mavlink_uart.msg import ServoCommand, DCMotorCommand
 
-# Create publishers
+# パブリッシャーを作成
 servo_pub = self.create_publisher(ServoCommand, '/servo/command', 10)
 motor_pub = self.create_publisher(DCMotorCommand, '/dcmotor/command', 10)
 ```
 
-## Hardware Setup
+## ハードウェアセットアップ
 
-### STM32 Firmware
-- Compatible STM32F446RE firmware located at: `/home/imanoob/ilias2026_ws/hal_ws/f446re`
-- Firmware must implement:
-  - MAVLink v2 protocol parser
-  - Device-specific message handlers
-  - CAN bus communication for RoboMaster motors
-  - Timer-based telemetry (100ms / 10Hz)
+### STM32 ファームウェア
+- 互換性のあるSTM32F446REファームウェアの場所: `/home/imanoob/ilias2026_ws/hal_ws/f446re`
+- ファームウェアが実装すべき機能:
+  - MAVLink v2プロトコルパーサー
+  - デバイス固有のメッセージハンドラー
+  - RoboMasterモーター用CANバス通信
+  - タイマーベースのテレメトリ (100ms / 10Hz)
 
-### Wiring Requirements
-- **UART**: TX/RX connected to USB-to-Serial adapter or STM32 USB CDC
-- **CAN**: CAN_H/CAN_L connected to RoboMaster motor bus
-- **Servos**: PWM outputs connected to servo signal pins
-- **DC Motors**: Motor driver H-bridge connected to STM32 PWM/GPIO
-- **Encoders**: Quadrature encoder signals connected to STM32 timer inputs
+### 配線要件
+- **UART**: TX/RXをUSB-to-SerialアダプターまたはSTM32 USB CDCに接続
+- **CAN**: CAN_H/CAN_LをRoboMasterモーターバスに接続
+- **サーボ**: PWM出力をサーボ信号ピンに接続
+- **DCモーター**: モータードライバーHブリッジをSTM32 PWM/GPIOに接続
+- **エンコーダ**: クアドラチャーエンコーダ信号をSTM32タイマー入力に接続
 
-### Network Setup (UDP)
-- ESP32 WiFi bridge or direct Ethernet connection
-- Configure ESP32 to bridge UART ↔ UDP (MAVLink transparent mode)
-- Default port: 14550 (MAVLink standard)
+### ネットワークセットアップ (UDP)
+- ESP32 WiFiブリッジまたは直接Ethernet接続
+- ESP32をUART ↔ UDPブリッジとして設定 (MAVLink透過モード)
+- デフォルトポート: 14550 (MAVLink標準)
 
-## Troubleshooting
+## トラブルシューティング
 
-### Serial Port Issues
+### シリアルポートの問題
 
 ```bash
-# Check available serial ports
+# 利用可能なシリアルポートを確認
 ls /dev/tty* | grep -E "USB|ACM"
 
-# Check permissions
+# パーミッションを確認
 ls -la /dev/ttyUSB0
 
-# Add user to dialout group (requires logout)
+# ユーザーをdialoutグループに追加 (ログアウトが必要)
 sudo usermod -a -G dialout $USER
 
-# Test serial port
+# シリアルポートをテスト
 screen /dev/ttyUSB0 115200
 ```
 
-### Network Issues
+### ネットワークの問題
 
 ```bash
-# Test UDP connectivity
+# UDP接続をテスト
 nc -u 192.168.4.1 14550
 
-# Check firewall
+# ファイアウォールを確認
 sudo ufw status
 sudo ufw allow 14550/udp
 
-# Monitor network traffic
+# ネットワークトラフィックを監視
 sudo tcpdump -i any port 14550
 ```
 
-### Device Not Found
+### デバイスが見つからない
 
-1. **Check hardware connection**: LED indicators, power supply
-2. **Verify firmware**: Ensure STM32 is flashed with compatible firmware
-3. **Check ROS2 topics**: `ros2 topic list | grep servo`
-4. **Monitor diagnostics**: `ros2 topic echo /diagnostics`
-5. **Check MAVLink communication**: Enable debug logging in launch files
+1. **ハードウェア接続を確認**: LEDインジケーター、電源供給
+2. **ファームウェアを確認**: STM32が互換性のあるファームウェアでフラッシュされていることを確認
+3. **ROS2トピックを確認**: `ros2 topic list | grep servo`
+4. **診断を監視**: `ros2 topic echo /diagnostics`
+5. **MAVLink通信を確認**: 起動ファイルでデバッグログを有効化
 
-### Build Errors
+### ビルドエラー
 
 ```bash
-# Clean build
+# クリーンビルド
 rm -rf build/ install/ log/
 colcon build
 
-# Build with verbose output
+# 詳細出力でビルド
 colcon build --event-handlers console_direct+
 
-# Check dependencies
+# 依存関係を確認
 rosdep check --from-paths src --ignore-src
 ```
 
-## Performance Notes
+## パフォーマンスノート
 
-- **Telemetry Rate**: 10Hz (100ms) for all devices
-- **Servo Update Rate**: Matches telemetry at 10Hz
-- **DC Motor PID**: Configurable loop rates (typically 100Hz on STM32)
-- **Network Latency**: Add 10-50ms for WiFi, 1-5ms for Ethernet
-- **CAN Bus**: 1Mbps for RoboMaster motors
+- **テレメトリレート**: 全デバイスで10Hz (100ms)
+- **サーボ更新レート**: テレメトリと同じ10Hz
+- **DCモーターPID**: 設定可能なループレート (通常STM32で100Hz)
+- **ネットワークレイテンシ**: WiFiで10-50ms、Ethernetで1-5ms追加
+- **CANバス**: RoboMasterモーター用1Mbps
 
-## License
+## ライセンス
 
 MIT License
 
-## Contributing
+## コントリビューション
 
-When contributing to this project:
-1. Follow ROS2 naming conventions
-2. Use MAVLink SDK from `mavlink_SDK/` directory
-3. Update both UART and UDP interfaces if adding new features
-4. Test with both serial and network communication
-5. Update relevant README files
+本プロジェクトへの貢献時の注意点:
+1. ROS2命名規則に従う
+2. `mavlink_SDK/` ディレクトリのMAVLink SDKを使用
+3. 新機能追加時はUARTとUDP両方のインターフェースを更新
+4. シリアルとネットワーク通信の両方でテスト
+5. 関連するREADMEファイルを更新
 
-## Support & Documentation
+## サポート & ドキュメント
 
-- **ROS2 Documentation**: https://docs.ros.org/en/jazzy/
-- **MAVLink Protocol**: https://mavlink.io/en/
+- **ROS2 ドキュメント**: https://docs.ros.org/en/jazzy/
+- **MAVLink プロトコル**: https://mavlink.io/en/
 - **STM32 HAL**: https://www.st.com/en/embedded-software/stm32cube-mcu-mpu-packages.html
 - **RoboMaster SDK**: https://github.com/RoboMaster
 
-## Related Packages
+## 関連パッケージ
 
-- **seiretu**: Robot control application using this MAVLink system
-- **dynamixel_controller**: Alternative servo system for Dynamixel motors
-- **rogilink_flex**: RogiLink sensor communication system
+- **seiretu**: 本MAVLinkシステムを使用したロボット制御アプリケーション
+- **dynamixel_controller**: Dynamixelモーター用代替サーボシステム
+- **rogilink_flex**: RogiLinkセンサー通信システム
 
 ---
 
-**Version**: 1.0.0
-**ROS2 Distribution**: Jazzy
-**Last Updated**: 2025-10-03
+**バージョン**: 1.0.0
+**ROS2 ディストリビューション**: Jazzy
+**最終更新**: 2025-10-03
