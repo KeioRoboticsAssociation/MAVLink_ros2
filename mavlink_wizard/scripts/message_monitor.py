@@ -11,7 +11,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
-from stm32_mavlink_uart.msg import ServoState, EncoderState, RobomasterMotorState
+from stm32_mavlink_uart.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState
 
 
 class MessageType(Enum):
@@ -19,6 +19,7 @@ class MessageType(Enum):
     SERVO_STATE = "servo_state"
     ENCODER_STATE = "encoder_state"
     MOTOR_STATE = "motor_state"
+    DCMOTOR_STATE = "dcmotor_state"
     HEARTBEAT = "heartbeat"
     PARAMETER = "parameter"
     COMMAND = "command"
@@ -96,6 +97,12 @@ class MessageMonitor(Node):
         self.motor_state_sub = self.create_subscription(
             RobomasterMotorState, '/robomaster/motor_state',
             lambda msg: self._handle_motor_state(msg),
+            qos_profile
+        )
+
+        self.dcmotor_state_sub = self.create_subscription(
+            DCMotorState, '/dcmotor/state',
+            lambda msg: self._handle_dcmotor_state(msg),
             qos_profile
         )
 
@@ -250,6 +257,38 @@ class MessageMonitor(Node):
 
         self._process_message(message_type, device_id, data, msg)
 
+    def _handle_dcmotor_state(self, msg):
+        """Handle DC motor state message"""
+        if not self.monitoring_enabled:
+            return
+
+        device_id = msg.motor_id
+        message_type = MessageType.DCMOTOR_STATE
+
+        if self._should_filter_message(message_type, device_id):
+            return
+
+        status_map = {
+            0: "OK",
+            1: "NOT_INITIALIZED",
+            2: "ERROR",
+            3: "OVERHEAT",
+            4: "OVERCURRENT",
+            5: "TIMEOUT"
+        }
+
+        data = {
+            'position_rad': msg.position_rad,
+            'velocity_rps': msg.velocity_rps,
+            'current_a': msg.current_a,
+            'temperature_c': msg.temperature_c,
+            'control_mode': msg.control_mode,
+            'enabled': msg.enabled,
+            'status': status_map.get(msg.status, "UNKNOWN")
+        }
+
+        self._process_message(message_type, device_id, data, msg)
+
     def _should_filter_message(self, message_type: MessageType, device_id: int) -> bool:
         """Check if message should be filtered out"""
         if self.filtered_message_types and message_type not in self.filtered_message_types:
@@ -340,6 +379,8 @@ class MessageMonitor(Node):
             return "encoder"
         elif message_type == MessageType.MOTOR_STATE:
             return "motor"
+        elif message_type == MessageType.DCMOTOR_STATE:
+            return "dcmotor"
         else:
             return "unknown"
 

@@ -56,9 +56,9 @@ def generate_launch_description():
         parameters=[{
             'serial_port': LaunchConfiguration('serial_port'),
             'baudrate': LaunchConfiguration('baud_rate'),  # Note: parameter name is 'baudrate' not 'baud_rate'
-            'system_id': 1,
+            'system_id': 255,  # GCS system ID (Ground Control Station)
             'component_id': 1,
-            'target_system_id': 1,
+            'target_system_id': 1,  # STM32 system ID
             'target_component_id': 1,
         }],
         output='screen'
