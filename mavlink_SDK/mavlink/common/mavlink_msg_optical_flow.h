@@ -9,8 +9,8 @@ typedef struct __mavlink_optical_flow_t {
  float flow_comp_m_x; /*< [m/s] Flow in x-sensor direction, angular-speed compensated*/
  float flow_comp_m_y; /*< [m/s] Flow in y-sensor direction, angular-speed compensated*/
  float ground_distance; /*< [m] Ground distance. Positive value: distance known. Negative value: Unknown distance*/
- int16_t flow_x; /*< [dpix] Flow in x-sensor direction*/
- int16_t flow_y; /*< [dpix] Flow in y-sensor direction*/
+ int16_t flow_x; /*< [rad/s] Flow rate around X-axis (deprecated; use flow_rate_x)*/
+ int16_t flow_y; /*< [rad/s] Flow rate around Y-axis (deprecated; use flow_rate_y)*/
  uint8_t sensor_id; /*<  Sensor ID*/
  uint8_t quality; /*<  Optical flow quality / confidence. 0: bad, 255: maximum quality*/
  float flow_rate_x; /*< [rad/s] Flow rate about X axis*/
@@ -70,8 +70,8 @@ typedef struct __mavlink_optical_flow_t {
  *
  * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param sensor_id  Sensor ID
- * @param flow_x [dpix] Flow in x-sensor direction
- * @param flow_y [dpix] Flow in y-sensor direction
+ * @param flow_x [rad/s] Flow rate around X-axis (deprecated; use flow_rate_x)
+ * @param flow_y [rad/s] Flow rate around Y-axis (deprecated; use flow_rate_y)
  * @param flow_comp_m_x [m/s] Flow in x-sensor direction, angular-speed compensated
  * @param flow_comp_m_y [m/s] Flow in y-sensor direction, angular-speed compensated
  * @param quality  Optical flow quality / confidence. 0: bad, 255: maximum quality
@@ -126,8 +126,8 @@ static inline uint16_t mavlink_msg_optical_flow_pack(uint8_t system_id, uint8_t 
  *
  * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param sensor_id  Sensor ID
- * @param flow_x [dpix] Flow in x-sensor direction
- * @param flow_y [dpix] Flow in y-sensor direction
+ * @param flow_x [rad/s] Flow rate around X-axis (deprecated; use flow_rate_x)
+ * @param flow_y [rad/s] Flow rate around Y-axis (deprecated; use flow_rate_y)
  * @param flow_comp_m_x [m/s] Flow in x-sensor direction, angular-speed compensated
  * @param flow_comp_m_y [m/s] Flow in y-sensor direction, angular-speed compensated
  * @param quality  Optical flow quality / confidence. 0: bad, 255: maximum quality
@@ -185,8 +185,8 @@ static inline uint16_t mavlink_msg_optical_flow_pack_status(uint8_t system_id, u
  * @param msg The MAVLink message to compress the data into
  * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param sensor_id  Sensor ID
- * @param flow_x [dpix] Flow in x-sensor direction
- * @param flow_y [dpix] Flow in y-sensor direction
+ * @param flow_x [rad/s] Flow rate around X-axis (deprecated; use flow_rate_x)
+ * @param flow_y [rad/s] Flow rate around Y-axis (deprecated; use flow_rate_y)
  * @param flow_comp_m_x [m/s] Flow in x-sensor direction, angular-speed compensated
  * @param flow_comp_m_y [m/s] Flow in y-sensor direction, angular-speed compensated
  * @param quality  Optical flow quality / confidence. 0: bad, 255: maximum quality
@@ -280,8 +280,8 @@ static inline uint16_t mavlink_msg_optical_flow_encode_status(uint8_t system_id,
  *
  * @param time_usec [us] Timestamp (UNIX Epoch time or time since system boot). The receiving end can infer timestamp format (since 1.1.1970 or since system boot) by checking for the magnitude of the number.
  * @param sensor_id  Sensor ID
- * @param flow_x [dpix] Flow in x-sensor direction
- * @param flow_y [dpix] Flow in y-sensor direction
+ * @param flow_x [rad/s] Flow rate around X-axis (deprecated; use flow_rate_x)
+ * @param flow_y [rad/s] Flow rate around Y-axis (deprecated; use flow_rate_y)
  * @param flow_comp_m_x [m/s] Flow in x-sensor direction, angular-speed compensated
  * @param flow_comp_m_y [m/s] Flow in y-sensor direction, angular-speed compensated
  * @param quality  Optical flow quality / confidence. 0: bad, 255: maximum quality
@@ -408,7 +408,7 @@ static inline uint8_t mavlink_msg_optical_flow_get_sensor_id(const mavlink_messa
 /**
  * @brief Get field flow_x from optical_flow message
  *
- * @return [dpix] Flow in x-sensor direction
+ * @return [rad/s] Flow rate around X-axis (deprecated; use flow_rate_x)
  */
 static inline int16_t mavlink_msg_optical_flow_get_flow_x(const mavlink_message_t* msg)
 {
@@ -418,7 +418,7 @@ static inline int16_t mavlink_msg_optical_flow_get_flow_x(const mavlink_message_
 /**
  * @brief Get field flow_y from optical_flow message
  *
- * @return [dpix] Flow in y-sensor direction
+ * @return [rad/s] Flow rate around Y-axis (deprecated; use flow_rate_y)
  */
 static inline int16_t mavlink_msg_optical_flow_get_flow_y(const mavlink_message_t* msg)
 {

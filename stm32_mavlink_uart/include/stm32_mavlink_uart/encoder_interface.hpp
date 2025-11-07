@@ -4,9 +4,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vector>
 #include <mutex>
-#include "stm32_mavlink_uart/msg/encoder_state.hpp"
-#include "stm32_mavlink_uart/msg/encoder_config.hpp"
-#include "stm32_mavlink_uart/srv/set_encoder_config.hpp"
+#include "stm32_mavlink_msgs/msg/encoder_state.hpp"
+#include "stm32_mavlink_msgs/msg/encoder_config.hpp"
+#include "stm32_mavlink_msgs/srv/set_encoder_config.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "robomaster_motor/mavlink.h"
 
@@ -29,8 +29,8 @@ private:
     rclcpp::Node* node_;
     
     // ROS2 interfaces
-    rclcpp::Publisher<stm32_mavlink_uart::msg::EncoderState>::SharedPtr encoder_state_pub_;
-    rclcpp::Service<stm32_mavlink_uart::srv::SetEncoderConfig>::SharedPtr encoder_config_srv_;
+    rclcpp::Publisher<stm32_mavlink_msgs::msg::EncoderState>::SharedPtr encoder_state_pub_;
+    rclcpp::Service<stm32_mavlink_msgs::srv::SetEncoderConfig>::SharedPtr encoder_config_srv_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_position_srv_;
     
     // Encoder states
@@ -47,8 +47,8 @@ private:
     std::mutex encoder_mutex_;
     
     // Callbacks
-    void encoderConfigCallback(const std::shared_ptr<stm32_mavlink_uart::srv::SetEncoderConfig::Request> request,
-                               std::shared_ptr<stm32_mavlink_uart::srv::SetEncoderConfig::Response> response);
+    void encoderConfigCallback(const std::shared_ptr<stm32_mavlink_msgs::srv::SetEncoderConfig::Request> request,
+                               std::shared_ptr<stm32_mavlink_msgs::srv::SetEncoderConfig::Response> response);
     void resetPositionCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                               std::shared_ptr<std_srvs::srv::Trigger::Response> response);
     

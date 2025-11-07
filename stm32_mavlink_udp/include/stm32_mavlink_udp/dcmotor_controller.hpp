@@ -4,11 +4,11 @@
 #include <memory>
 #include <queue>
 
-#include "stm32_mavlink_udp/msg/dc_motor_command.hpp"
-#include "stm32_mavlink_udp/msg/dc_motor_state.hpp"
-#include "stm32_mavlink_udp/msg/dc_motor_config.hpp"
-#include "stm32_mavlink_udp/srv/set_dc_motor_config.hpp"
-#include "stm32_mavlink_udp/srv/get_dc_motor_config.hpp"
+#include "stm32_mavlink_msgs/msg/dc_motor_command.hpp"
+#include "stm32_mavlink_msgs/msg/dc_motor_state.hpp"
+#include "stm32_mavlink_msgs/msg/dc_motor_config.hpp"
+#include "stm32_mavlink_msgs/srv/set_dc_motor_config.hpp"
+#include "stm32_mavlink_msgs/srv/get_dc_motor_config.hpp"
 
 // MAVLink headers
 #include "common/mavlink.h"

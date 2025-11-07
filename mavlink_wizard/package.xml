@@ -14,9 +14,7 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>diagnostic_msgs</depend>
-  <depend>stm32_mavlink_uart</depend>
-  <depend>rosidl_default_generators</depend>
-  <depend>rosidl_default_runtime</depend>
+  <depend>stm32_mavlink_msgs</depend>
 
   <build_depend>qtbase5-dev</build_depend>
   <build_depend>qt5-qmake</build_depend>

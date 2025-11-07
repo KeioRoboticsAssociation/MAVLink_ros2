@@ -15,8 +15,8 @@ from rclpy.node import Node
 logger = logging.getLogger(__name__)
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
-from stm32_mavlink_uart.msg import RobomasterMotorConfig
-from stm32_mavlink_uart.srv import (
+from stm32_mavlink_msgs.msg import RobomasterMotorConfig
+from stm32_mavlink_msgs.srv import (
     SetServoConfig, SetEncoderConfig,
     SetRobomasterMotorConfig, GetRobomasterMotorConfig,
     SetDCMotorConfig, GetDCMotorConfig

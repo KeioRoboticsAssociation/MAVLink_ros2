@@ -46,7 +46,7 @@ def test_device_scanner():
     spinner_thread.start()
 
     print("Monitoring for devices for 10 seconds...")
-    print("Make sure stm32_mavlink_uart is running and publishing device states!")
+    print("Make sure a MAVLink interface (stm32_mavlink_uart or stm32_mavlink_udp) is running and publishing device states!")
 
     # Wait for some time to collect devices
     time.sleep(10)
@@ -68,9 +68,9 @@ def test_device_scanner():
             print(f"  - {device.device_type.upper()} ID {device.device_id}: {device.status} (Active: {active})")
     else:
         print("\nNo active devices found.")
-        print("This is expected if stm32_mavlink_uart is not running.")
+        print("This is expected if no MAVLink interface is running.")
         print("To test with real devices:")
-        print("  1. Start stm32_mavlink_uart: ros2 run stm32_mavlink_uart mavlink_serial_node")
+        print("  1. Start MAVLink interface: ros2 launch stm32_mavlink_uart stm32_interface.launch.py (or stm32_mavlink_udp)")
         print("  2. Ensure devices are connected and publishing state messages")
 
     # Cleanup

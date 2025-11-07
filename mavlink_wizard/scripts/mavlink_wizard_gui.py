@@ -19,8 +19,8 @@ from PyQt5.QtGui import *
 
 from std_msgs.msg import String
 from sensor_msgs.msg import JointState
-from stm32_mavlink_uart.msg import ServoState, EncoderState, RobomasterMotorState, RobomasterMotorCommand, DCMotorState, DCMotorCommand, ServoCommand
-from stm32_mavlink_uart.srv import SetServoConfig, SetEncoderConfig, SetDCMotorConfig, GetDCMotorConfig
+from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, RobomasterMotorCommand, DCMotorState, DCMotorCommand, ServoCommand
+from stm32_mavlink_msgs.srv import SetServoConfig, SetEncoderConfig, SetDCMotorConfig, GetDCMotorConfig
 
 # Import the updated device scanner and parameter manager
 from device_scanner import DeviceScanner
@@ -1257,7 +1257,7 @@ class MAVLinkWizardGUI(QMainWindow):
 
         # Information label
         info_label = QLabel("Device scanner monitors ROS2 topics for active devices.\n"
-                           "Make sure the stm32_mavlink_uart node is running.")
+                           "Make sure the MAVLink node (UART or UDP) is running.")
         info_label.setWordWrap(True)
         info_label.setStyleSheet("color: #888888; font-style: italic;")
         scan_layout.addWidget(info_label)

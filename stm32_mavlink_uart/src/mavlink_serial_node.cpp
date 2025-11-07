@@ -38,9 +38,9 @@ MAVLinkSerialNode::MAVLinkSerialNode()
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("diagnostics", 10);
 
     // CRITICAL FIX: Create RoboMaster subscription directly in main node for proper executor handling
-    robomaster_cmd_sub_ = this->create_subscription<stm32_mavlink_uart::msg::RobomasterMotorCommand>(
+    robomaster_cmd_sub_ = this->create_subscription<stm32_mavlink_msgs::msg::RobomasterMotorCommand>(
         "robomaster/motor_command", 10,
-        [this](const stm32_mavlink_uart::msg::RobomasterMotorCommand::SharedPtr msg) {
+        [this](const stm32_mavlink_msgs::msg::RobomasterMotorCommand::SharedPtr msg) {
             RCLCPP_ERROR(this->get_logger(), "******************************************");
             RCLCPP_ERROR(this->get_logger(), "*** ROS2 CALLBACK TRIGGERED! Motor %d ***", msg->motor_id);
             RCLCPP_ERROR(this->get_logger(), "******************************************");

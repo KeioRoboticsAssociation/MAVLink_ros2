@@ -5,11 +5,11 @@
 #include <vector>
 #include <mutex>
 #include <unordered_map>
-#include "stm32_mavlink_udp/msg/robomaster_motor_command.hpp"
-#include "stm32_mavlink_udp/msg/robomaster_motor_state.hpp"
-#include "stm32_mavlink_udp/msg/robomaster_motor_config.hpp"
-#include "stm32_mavlink_udp/srv/set_robomaster_motor_config.hpp"
-#include "stm32_mavlink_udp/srv/get_robomaster_motor_config.hpp"
+#include "stm32_mavlink_msgs/msg/robomaster_motor_command.hpp"
+#include "stm32_mavlink_msgs/msg/robomaster_motor_state.hpp"
+#include "stm32_mavlink_msgs/msg/robomaster_motor_config.hpp"
+#include "stm32_mavlink_msgs/srv/set_robomaster_motor_config.hpp"
+#include "stm32_mavlink_msgs/srv/get_robomaster_motor_config.hpp"
 #include "robomaster_motor/mavlink.h"
 
 namespace stm32_mavlink_udp {
@@ -38,24 +38,24 @@ public:
     void update();
 
     // ROS2 callback (public for main node access)
-    void motorCommandCallback(const stm32_mavlink_udp::msg::RobomasterMotorCommand::SharedPtr msg);
+    void motorCommandCallback(const stm32_mavlink_msgs::msg::RobomasterMotorCommand::SharedPtr msg);
 
 private:
     rclcpp::Node* node_;
     
     // ROS2 interfaces
-    rclcpp::Publisher<stm32_mavlink_udp::msg::RobomasterMotorState>::SharedPtr motor_state_pub_;
-    rclcpp::Service<stm32_mavlink_udp::srv::SetRobomasterMotorConfig>::SharedPtr set_config_srv_;
-    rclcpp::Service<stm32_mavlink_udp::srv::GetRobomasterMotorConfig>::SharedPtr get_config_srv_;
+    rclcpp::Publisher<stm32_mavlink_msgs::msg::RobomasterMotorState>::SharedPtr motor_state_pub_;
+    rclcpp::Service<stm32_mavlink_msgs::srv::SetRobomasterMotorConfig>::SharedPtr set_config_srv_;
+    rclcpp::Service<stm32_mavlink_msgs::srv::GetRobomasterMotorConfig>::SharedPtr get_config_srv_;
     
     // Motor data structures
     struct MotorData {
         // Current state
-        stm32_mavlink_udp::msg::RobomasterMotorState state;
-        stm32_mavlink_udp::msg::RobomasterMotorConfig config;
+        stm32_mavlink_msgs::msg::RobomasterMotorState state;
+        stm32_mavlink_msgs::msg::RobomasterMotorConfig config;
 
         // Command tracking
-        stm32_mavlink_udp::msg::RobomasterMotorCommand last_command;
+        stm32_mavlink_msgs::msg::RobomasterMotorCommand last_command;
         rclcpp::Time last_command_time;
         rclcpp::Time last_telemetry_time;
         rclcpp::Time last_update;
@@ -82,11 +82,11 @@ private:
     
     // Callbacks
     void setMotorConfigCallback(
-        const std::shared_ptr<stm32_mavlink_udp::srv::SetRobomasterMotorConfig::Request> request,
-        std::shared_ptr<stm32_mavlink_udp::srv::SetRobomasterMotorConfig::Response> response);
+        const std::shared_ptr<stm32_mavlink_msgs::srv::SetRobomasterMotorConfig::Request> request,
+        std::shared_ptr<stm32_mavlink_msgs::srv::SetRobomasterMotorConfig::Response> response);
     void getMotorConfigCallback(
-        const std::shared_ptr<stm32_mavlink_udp::srv::GetRobomasterMotorConfig::Request> request,
-        std::shared_ptr<stm32_mavlink_udp::srv::GetRobomasterMotorConfig::Response> response);
+        const std::shared_ptr<stm32_mavlink_msgs::srv::GetRobomasterMotorConfig::Request> request,
+        std::shared_ptr<stm32_mavlink_msgs::srv::GetRobomasterMotorConfig::Response> response);
     
     // Internal methods
     void publishMotorStates();
@@ -95,7 +95,7 @@ private:
     bool isValidMotorId(uint8_t motor_id) const;
     
     // MAVLink message construction
-    void buildMotorControlMessage(const stm32_mavlink_udp::msg::RobomasterMotorCommand& cmd, mavlink_message_t& msg, 
+    void buildMotorControlMessage(const stm32_mavlink_msgs::msg::RobomasterMotorCommand& cmd, mavlink_message_t& msg, 
                                  uint8_t system_id, uint8_t component_id, uint8_t target_system);
     void buildParameterSetMessage(uint8_t motor_id, const std::string& param_name, float value, mavlink_message_t& msg,
                                  uint8_t system_id, uint8_t component_id, uint8_t target_system);
@@ -106,8 +106,8 @@ private:
     std::string getParameterName(uint8_t motor_id, const std::string& base_name) const;
     
     // Configuration conversion
-    void configToParameters(uint8_t motor_id, const stm32_mavlink_udp::msg::RobomasterMotorConfig& config);
-    void parametersToConfig(uint8_t motor_id, stm32_mavlink_udp::msg::RobomasterMotorConfig& config);
+    void configToParameters(uint8_t motor_id, const stm32_mavlink_msgs::msg::RobomasterMotorConfig& config);
+    void parametersToConfig(uint8_t motor_id, stm32_mavlink_msgs::msg::RobomasterMotorConfig& config);
     
     // Custom MAVLink message IDs are now defined in the generated library
     // MAVLINK_MSG_ID_ROBOMASTER_MOTOR_CONTROL = 12000

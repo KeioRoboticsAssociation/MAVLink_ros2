@@ -18,7 +18,7 @@ typedef struct __mavlink_mission_item_t {
  uint8_t target_component; /*<  Component ID*/
  uint8_t frame; /*<  The coordinate system of the waypoint.*/
  uint8_t current; /*<  false:0, true:1*/
- uint8_t autocontinue; /*<  Autocontinue to next waypoint. 0: false, 1: true. Set false to pause mission after the item completes.*/
+ uint8_t autocontinue; /*<  Autocontinue to next waypoint*/
  uint8_t mission_type; /*<  Mission type.*/
 } mavlink_mission_item_t;
 
@@ -89,7 +89,7 @@ typedef struct __mavlink_mission_item_t {
  * @param frame  The coordinate system of the waypoint.
  * @param command  The scheduled action for the waypoint.
  * @param current  false:0, true:1
- * @param autocontinue  Autocontinue to next waypoint. 0: false, 1: true. Set false to pause mission after the item completes.
+ * @param autocontinue  Autocontinue to next waypoint
  * @param param1  PARAM1, see MAV_CMD enum
  * @param param2  PARAM2, see MAV_CMD enum
  * @param param3  PARAM3, see MAV_CMD enum
@@ -160,7 +160,7 @@ static inline uint16_t mavlink_msg_mission_item_pack(uint8_t system_id, uint8_t 
  * @param frame  The coordinate system of the waypoint.
  * @param command  The scheduled action for the waypoint.
  * @param current  false:0, true:1
- * @param autocontinue  Autocontinue to next waypoint. 0: false, 1: true. Set false to pause mission after the item completes.
+ * @param autocontinue  Autocontinue to next waypoint
  * @param param1  PARAM1, see MAV_CMD enum
  * @param param2  PARAM2, see MAV_CMD enum
  * @param param3  PARAM3, see MAV_CMD enum
@@ -234,7 +234,7 @@ static inline uint16_t mavlink_msg_mission_item_pack_status(uint8_t system_id, u
  * @param frame  The coordinate system of the waypoint.
  * @param command  The scheduled action for the waypoint.
  * @param current  false:0, true:1
- * @param autocontinue  Autocontinue to next waypoint. 0: false, 1: true. Set false to pause mission after the item completes.
+ * @param autocontinue  Autocontinue to next waypoint
  * @param param1  PARAM1, see MAV_CMD enum
  * @param param2  PARAM2, see MAV_CMD enum
  * @param param3  PARAM3, see MAV_CMD enum
@@ -344,7 +344,7 @@ static inline uint16_t mavlink_msg_mission_item_encode_status(uint8_t system_id,
  * @param frame  The coordinate system of the waypoint.
  * @param command  The scheduled action for the waypoint.
  * @param current  false:0, true:1
- * @param autocontinue  Autocontinue to next waypoint. 0: false, 1: true. Set false to pause mission after the item completes.
+ * @param autocontinue  Autocontinue to next waypoint
  * @param param1  PARAM1, see MAV_CMD enum
  * @param param2  PARAM2, see MAV_CMD enum
  * @param param3  PARAM3, see MAV_CMD enum
@@ -533,7 +533,7 @@ static inline uint8_t mavlink_msg_mission_item_get_current(const mavlink_message
 /**
  * @brief Get field autocontinue from mission_item message
  *
- * @return  Autocontinue to next waypoint. 0: false, 1: true. Set false to pause mission after the item completes.
+ * @return  Autocontinue to next waypoint
  */
 static inline uint8_t mavlink_msg_mission_item_get_autocontinue(const mavlink_message_t* msg)
 {

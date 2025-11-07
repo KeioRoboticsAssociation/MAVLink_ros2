@@ -4,11 +4,11 @@
 #include <memory>
 #include <queue>
 
-#include "stm32_mavlink_uart/msg/dc_motor_command.hpp"
-#include "stm32_mavlink_uart/msg/dc_motor_state.hpp"
-#include "stm32_mavlink_uart/msg/dc_motor_config.hpp"
-#include "stm32_mavlink_uart/srv/set_dc_motor_config.hpp"
-#include "stm32_mavlink_uart/srv/get_dc_motor_config.hpp"
+#include "stm32_mavlink_msgs/msg/dc_motor_command.hpp"
+#include "stm32_mavlink_msgs/msg/dc_motor_state.hpp"
+#include "stm32_mavlink_msgs/msg/dc_motor_config.hpp"
+#include "stm32_mavlink_msgs/srv/set_dc_motor_config.hpp"
+#include "stm32_mavlink_msgs/srv/get_dc_motor_config.hpp"
 
 // MAVLink headers - Updated to use custom protocol
 #include "robomaster_motor/mavlink.h"

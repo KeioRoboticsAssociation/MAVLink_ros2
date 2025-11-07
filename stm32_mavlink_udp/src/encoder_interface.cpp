@@ -8,10 +8,10 @@ EncoderInterface::EncoderInterface(rclcpp::Node* node) : node_(node) {
     encoder_states_.resize(16);
     
     // Create ROS2 interfaces
-    encoder_state_pub_ = node_->create_publisher<stm32_mavlink_udp::msg::EncoderState>(
+    encoder_state_pub_ = node_->create_publisher<stm32_mavlink_msgs::msg::EncoderState>(
         "encoder/states", 10);
     
-    encoder_config_srv_ = node_->create_service<stm32_mavlink_udp::srv::SetEncoderConfig>(
+    encoder_config_srv_ = node_->create_service<stm32_mavlink_msgs::srv::SetEncoderConfig>(
         "encoder/set_config",
         std::bind(&EncoderInterface::encoderConfigCallback, this,
                  std::placeholders::_1, std::placeholders::_2));
@@ -93,8 +93,8 @@ bool EncoderInterface::getEncoderConfigCommand(mavlink_message_t& msg, uint8_t s
 }
 
 void EncoderInterface::encoderConfigCallback(
-    const std::shared_ptr<stm32_mavlink_udp::srv::SetEncoderConfig::Request> request,
-    std::shared_ptr<stm32_mavlink_udp::srv::SetEncoderConfig::Response> response) {
+    const std::shared_ptr<stm32_mavlink_msgs::srv::SetEncoderConfig::Request> request,
+    std::shared_ptr<stm32_mavlink_msgs::srv::SetEncoderConfig::Response> response) {
     
     // In a real implementation, this would send configuration to STM32
     response->success = true;
@@ -118,7 +118,7 @@ void EncoderInterface::publishEncoderStates() {
     auto now = node_->now();
     
     for (size_t i = 0; i < encoder_states_.size(); i++) {
-        auto msg = stm32_mavlink_udp::msg::EncoderState();
+        auto msg = stm32_mavlink_msgs::msg::EncoderState();
         msg.header.stamp = now;
         msg.encoder_id = i + 1;
         msg.position = encoder_states_[i].position;

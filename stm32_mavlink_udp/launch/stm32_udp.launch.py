@@ -20,13 +20,13 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'remote_host',
-            default_value='192.168.1.100',
-            description='Remote IP address to send to'
+            default_value='192.168.11.4',
+            description='Remote IP address to send to (STM32H753 default)'
         ),
         DeclareLaunchArgument(
             'remote_port',
-            default_value='14551',
-            description='Remote UDP port to send to'
+            default_value='14550',
+            description='Remote UDP port to send to (MAVLink standard)'
         ),
         DeclareLaunchArgument(
             'is_server_mode',

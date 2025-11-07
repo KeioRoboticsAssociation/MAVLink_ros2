@@ -8,16 +8,16 @@ RobomasterController::RobomasterController(rclcpp::Node* node) : node_(node) {
     // No subscription here - handled by main MAVLink node
 
     // Create ROS2 publishers
-    motor_state_pub_ = node_->create_publisher<stm32_mavlink_udp::msg::RobomasterMotorState>(
+    motor_state_pub_ = node_->create_publisher<stm32_mavlink_msgs::msg::RobomasterMotorState>(
         "robomaster/motor_state", 10);
     
     // Create ROS2 services
-    set_config_srv_ = node_->create_service<stm32_mavlink_udp::srv::SetRobomasterMotorConfig>(
+    set_config_srv_ = node_->create_service<stm32_mavlink_msgs::srv::SetRobomasterMotorConfig>(
         "robomaster/set_motor_config",
         std::bind(&RobomasterController::setMotorConfigCallback, this, 
                   std::placeholders::_1, std::placeholders::_2));
     
-    get_config_srv_ = node_->create_service<stm32_mavlink_udp::srv::GetRobomasterMotorConfig>(
+    get_config_srv_ = node_->create_service<stm32_mavlink_msgs::srv::GetRobomasterMotorConfig>(
         "robomaster/get_motor_config", 
         std::bind(&RobomasterController::getMotorConfigCallback, this,
                   std::placeholders::_1, std::placeholders::_2));
@@ -25,7 +25,7 @@ RobomasterController::RobomasterController(rclcpp::Node* node) : node_(node) {
     RCLCPP_INFO(node_->get_logger(), "RoboMaster Controller initialized");
 }
 
-void RobomasterController::motorCommandCallback(const stm32_mavlink_udp::msg::RobomasterMotorCommand::SharedPtr msg) {
+void RobomasterController::motorCommandCallback(const stm32_mavlink_msgs::msg::RobomasterMotorCommand::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(motors_mutex_);
 
     if (!isValidMotorId(msg->motor_id)) {
@@ -48,8 +48,8 @@ void RobomasterController::motorCommandCallback(const stm32_mavlink_udp::msg::Ro
 }
 
 void RobomasterController::setMotorConfigCallback(
-    const std::shared_ptr<stm32_mavlink_udp::srv::SetRobomasterMotorConfig::Request> request,
-    std::shared_ptr<stm32_mavlink_udp::srv::SetRobomasterMotorConfig::Response> response) {
+    const std::shared_ptr<stm32_mavlink_msgs::srv::SetRobomasterMotorConfig::Request> request,
+    std::shared_ptr<stm32_mavlink_msgs::srv::SetRobomasterMotorConfig::Response> response) {
     
     std::lock_guard<std::mutex> lock(motors_mutex_);
     
@@ -75,8 +75,8 @@ void RobomasterController::setMotorConfigCallback(
 }
 
 void RobomasterController::getMotorConfigCallback(
-    const std::shared_ptr<stm32_mavlink_udp::srv::GetRobomasterMotorConfig::Request> request,
-    std::shared_ptr<stm32_mavlink_udp::srv::GetRobomasterMotorConfig::Response> response) {
+    const std::shared_ptr<stm32_mavlink_msgs::srv::GetRobomasterMotorConfig::Request> request,
+    std::shared_ptr<stm32_mavlink_msgs::srv::GetRobomasterMotorConfig::Response> response) {
     
     std::lock_guard<std::mutex> lock(motors_mutex_);
     
@@ -372,7 +372,7 @@ bool RobomasterController::isValidMotorId(uint8_t motor_id) const {
     return motor_id >= 1 && motor_id <= MAX_MOTORS;
 }
 
-void RobomasterController::buildMotorControlMessage(const stm32_mavlink_udp::msg::RobomasterMotorCommand& cmd,
+void RobomasterController::buildMotorControlMessage(const stm32_mavlink_msgs::msg::RobomasterMotorCommand& cmd,
                                                    mavlink_message_t& msg, uint8_t system_id,
                                                    uint8_t component_id, uint8_t target_system) {
     // Validate motor ID
@@ -448,7 +448,7 @@ void RobomasterController::buildParameterSetMessage(uint8_t motor_id, const std:
 }
 
 void RobomasterController::configToParameters(uint8_t motor_id, 
-                                             const stm32_mavlink_udp::msg::RobomasterMotorConfig& config) {
+                                             const stm32_mavlink_msgs::msg::RobomasterMotorConfig& config) {
     // Queue parameter updates based on config
     // In practice, this would generate multiple parameter set messages
     
@@ -457,7 +457,7 @@ void RobomasterController::configToParameters(uint8_t motor_id,
 }
 
 void RobomasterController::parametersToConfig(uint8_t motor_id, 
-                                             stm32_mavlink_udp::msg::RobomasterMotorConfig& config) {
+                                             stm32_mavlink_msgs::msg::RobomasterMotorConfig& config) {
     // Convert received parameters back to config structure
     (void)motor_id; // Suppress unused parameter warning
     (void)config;   // Suppress unused parameter warning

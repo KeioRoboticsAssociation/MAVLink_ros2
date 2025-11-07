@@ -7,14 +7,14 @@ ServoController::ServoController(rclcpp::Node* node) : node_(node) {
     servo_states_.resize(16);
     
     // Create ROS2 interfaces
-    servo_cmd_sub_ = node_->create_subscription<stm32_mavlink_udp::msg::ServoCommand>(
+    servo_cmd_sub_ = node_->create_subscription<stm32_mavlink_msgs::msg::ServoCommand>(
         "servo/command", 10,
         std::bind(&ServoController::servoCommandCallback, this, std::placeholders::_1));
     
-    servo_state_pub_ = node_->create_publisher<stm32_mavlink_udp::msg::ServoState>(
+    servo_state_pub_ = node_->create_publisher<stm32_mavlink_msgs::msg::ServoState>(
         "servo/states", 10);
     
-    servo_config_srv_ = node_->create_service<stm32_mavlink_udp::srv::SetServoConfig>(
+    servo_config_srv_ = node_->create_service<stm32_mavlink_msgs::srv::SetServoConfig>(
         "servo/set_config",
         std::bind(&ServoController::servoConfigCallback, this, 
                  std::placeholders::_1, std::placeholders::_2));
@@ -180,7 +180,7 @@ bool ServoController::getRCOverrideMessage(mavlink_message_t& msg, uint8_t syste
     return true;
 }
 
-void ServoController::servoCommandCallback(const stm32_mavlink_udp::msg::ServoCommand::SharedPtr msg) {
+void ServoController::servoCommandCallback(const stm32_mavlink_msgs::msg::ServoCommand::SharedPtr msg) {
     std::lock_guard<std::mutex> lock(servo_mutex_);
 
     if (msg->servo_id > 0 && msg->servo_id <= servo_states_.size()) {
@@ -213,8 +213,8 @@ void ServoController::servoCommandCallback(const stm32_mavlink_udp::msg::ServoCo
 }
 
 void ServoController::servoConfigCallback(
-    const std::shared_ptr<stm32_mavlink_udp::srv::SetServoConfig::Request> request,
-    std::shared_ptr<stm32_mavlink_udp::srv::SetServoConfig::Response> response) {
+    const std::shared_ptr<stm32_mavlink_msgs::srv::SetServoConfig::Request> request,
+    std::shared_ptr<stm32_mavlink_msgs::srv::SetServoConfig::Response> response) {
     
     // In a real implementation, this would send configuration to STM32
     // For now, just acknowledge
@@ -234,7 +234,7 @@ void ServoController::publishServoStates() {
             continue;
         }
 
-        auto msg = stm32_mavlink_udp::msg::ServoState();
+        auto msg = stm32_mavlink_msgs::msg::ServoState();
         msg.header.stamp = now;
         msg.servo_id = i + 1;
         msg.current_angle_deg = servo_states_[i].current_angle_deg;

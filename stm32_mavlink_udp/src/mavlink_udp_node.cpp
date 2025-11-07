@@ -15,8 +15,8 @@ MAVLinkUDPNode::MAVLinkUDPNode()
     // Declare parameters
     this->declare_parameter("local_host", "0.0.0.0");
     this->declare_parameter("local_port", 14550);
-    this->declare_parameter("remote_host", "192.168.1.100");
-    this->declare_parameter("remote_port", 14551);
+    this->declare_parameter("remote_host", "192.168.11.4");
+    this->declare_parameter("remote_port", 14550);
     this->declare_parameter("is_server_mode", true);
     this->declare_parameter("system_id", 255);
     this->declare_parameter("component_id", 1);
@@ -44,9 +44,9 @@ MAVLinkUDPNode::MAVLinkUDPNode()
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("diagnostics", 10);
 
     // Create RoboMaster subscription
-    robomaster_cmd_sub_ = this->create_subscription<stm32_mavlink_udp::msg::RobomasterMotorCommand>(
+    robomaster_cmd_sub_ = this->create_subscription<stm32_mavlink_msgs::msg::RobomasterMotorCommand>(
         "robomaster/motor_command", 10,
-        [this](const stm32_mavlink_udp::msg::RobomasterMotorCommand::SharedPtr msg) {
+        [this](const stm32_mavlink_msgs::msg::RobomasterMotorCommand::SharedPtr msg) {
             RCLCPP_INFO(this->get_logger(), "UDP RoboMaster command received: Motor %d", msg->motor_id);
             robomaster_controller_->motorCommandCallback(msg);
         });

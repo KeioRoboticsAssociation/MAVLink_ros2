@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
-from stm32_mavlink_uart.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState
+from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState
 
 
 @dataclass

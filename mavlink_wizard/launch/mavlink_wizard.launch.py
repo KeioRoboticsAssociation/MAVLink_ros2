@@ -13,18 +13,6 @@ def generate_launch_description():
     """Generate launch description for MAVLink Wizard"""
 
     # Launch arguments
-    serial_port_arg = DeclareLaunchArgument(
-        'serial_port',
-        default_value='/dev/ttyUSB0',
-        description='Serial port for MAVLink communication'
-    )
-
-    baud_rate_arg = DeclareLaunchArgument(
-        'baud_rate',
-        default_value='115200',
-        description='Baud rate for serial communication'
-    )
-
     auto_scan_arg = DeclareLaunchArgument(
         'auto_scan',
         default_value='true',
@@ -39,7 +27,6 @@ def generate_launch_description():
 
     # Get package directories
     mavlink_wizard_dir = get_package_share_directory('mavlink_wizard')
-    stm32_mavlink_dir = get_package_share_directory('stm32_mavlink_uart')
 
     # Configuration file path
     config_file_path = PathJoinSubstitution([
@@ -48,21 +35,10 @@ def generate_launch_description():
         'wizard_config.yaml'
     ])
 
-    # STM32 MAVLink Interface Node
-    stm32_mavlink_node = Node(
-        package='stm32_mavlink_uart',
-        executable='mavlink_serial_node',
-        name='mavlink_serial_node',
-        parameters=[{
-            'serial_port': LaunchConfiguration('serial_port'),
-            'baudrate': LaunchConfiguration('baud_rate'),  # Note: parameter name is 'baudrate' not 'baud_rate'
-            'system_id': 255,  # GCS system ID (Ground Control Station)
-            'component_id': 1,
-            'target_system_id': 1,  # STM32 system ID
-            'target_component_id': 1,
-        }],
-        output='screen'
-    )
+    # NOTE: MAVLink interface should be launched separately
+    # For UART: ros2 launch stm32_mavlink_uart stm32_interface.launch.py serial_port:=<port> baudrate:=115200
+    # For UDP:  ros2 launch stm32_mavlink_udp stm32_udp.launch.py
+    # The wizard will connect to whichever interface is running and publishing on the standard topics
 
     # MAVLink Wizard GUI Node
     mavlink_wizard_gui_node = ExecuteProcess(
@@ -77,10 +53,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        serial_port_arg,
-        baud_rate_arg,
         auto_scan_arg,
         config_file_arg,
-        stm32_mavlink_node,
         mavlink_wizard_gui_node,
     ])

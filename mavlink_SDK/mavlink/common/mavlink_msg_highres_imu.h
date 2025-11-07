@@ -19,7 +19,7 @@ typedef struct __mavlink_highres_imu_t {
  float diff_pressure; /*< [hPa] Differential pressure*/
  float pressure_alt; /*<  Altitude calculated from pressure*/
  float temperature; /*< [degC] Temperature*/
- uint16_t fields_updated; /*<  Bitmap for fields that have updated since last message*/
+ uint16_t fields_updated; /*<  Bitmap for fields that have updated since last message, bit 0 = xacc, bit 12: temperature*/
  uint8_t id; /*<  Id. Ids are numbered from 0 and map to IMUs numbered from 1 (e.g. IMU1 will have a message with id=0)*/
 } mavlink_highres_imu_t;
 
@@ -100,7 +100,7 @@ typedef struct __mavlink_highres_imu_t {
  * @param diff_pressure [hPa] Differential pressure
  * @param pressure_alt  Altitude calculated from pressure
  * @param temperature [degC] Temperature
- * @param fields_updated  Bitmap for fields that have updated since last message
+ * @param fields_updated  Bitmap for fields that have updated since last message, bit 0 = xacc, bit 12: temperature
  * @param id  Id. Ids are numbered from 0 and map to IMUs numbered from 1 (e.g. IMU1 will have a message with id=0)
  * @return length of the message in bytes (excluding serial stream start sign)
  */
@@ -174,7 +174,7 @@ static inline uint16_t mavlink_msg_highres_imu_pack(uint8_t system_id, uint8_t c
  * @param diff_pressure [hPa] Differential pressure
  * @param pressure_alt  Altitude calculated from pressure
  * @param temperature [degC] Temperature
- * @param fields_updated  Bitmap for fields that have updated since last message
+ * @param fields_updated  Bitmap for fields that have updated since last message, bit 0 = xacc, bit 12: temperature
  * @param id  Id. Ids are numbered from 0 and map to IMUs numbered from 1 (e.g. IMU1 will have a message with id=0)
  * @return length of the message in bytes (excluding serial stream start sign)
  */
@@ -251,7 +251,7 @@ static inline uint16_t mavlink_msg_highres_imu_pack_status(uint8_t system_id, ui
  * @param diff_pressure [hPa] Differential pressure
  * @param pressure_alt  Altitude calculated from pressure
  * @param temperature [degC] Temperature
- * @param fields_updated  Bitmap for fields that have updated since last message
+ * @param fields_updated  Bitmap for fields that have updated since last message, bit 0 = xacc, bit 12: temperature
  * @param id  Id. Ids are numbered from 0 and map to IMUs numbered from 1 (e.g. IMU1 will have a message with id=0)
  * @return length of the message in bytes (excluding serial stream start sign)
  */
@@ -364,7 +364,7 @@ static inline uint16_t mavlink_msg_highres_imu_encode_status(uint8_t system_id, 
  * @param diff_pressure [hPa] Differential pressure
  * @param pressure_alt  Altitude calculated from pressure
  * @param temperature [degC] Temperature
- * @param fields_updated  Bitmap for fields that have updated since last message
+ * @param fields_updated  Bitmap for fields that have updated since last message, bit 0 = xacc, bit 12: temperature
  * @param id  Id. Ids are numbered from 0 and map to IMUs numbered from 1 (e.g. IMU1 will have a message with id=0)
  */
 #ifdef MAVLINK_USE_CONVENIENCE_FUNCTIONS
@@ -630,7 +630,7 @@ static inline float mavlink_msg_highres_imu_get_temperature(const mavlink_messag
 /**
  * @brief Get field fields_updated from highres_imu message
  *
- * @return  Bitmap for fields that have updated since last message
+ * @return  Bitmap for fields that have updated since last message, bit 0 = xacc, bit 12: temperature
  */
 static inline uint16_t mavlink_msg_highres_imu_get_fields_updated(const mavlink_message_t* msg)
 {

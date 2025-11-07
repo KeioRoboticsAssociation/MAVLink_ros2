@@ -4,9 +4,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <vector>
 #include <mutex>
-#include "stm32_mavlink_uart/msg/servo_command.hpp"
-#include "stm32_mavlink_uart/msg/servo_state.hpp"
-#include "stm32_mavlink_uart/srv/set_servo_config.hpp"
+#include "stm32_mavlink_msgs/msg/servo_command.hpp"
+#include "stm32_mavlink_msgs/msg/servo_state.hpp"
+#include "stm32_mavlink_msgs/srv/set_servo_config.hpp"
 #include "robomaster_motor/mavlink.h"
 
 namespace stm32_mavlink_uart {
@@ -29,9 +29,9 @@ private:
     rclcpp::Node* node_;
     
     // ROS2 interfaces
-    rclcpp::Subscription<stm32_mavlink_uart::msg::ServoCommand>::SharedPtr servo_cmd_sub_;
-    rclcpp::Publisher<stm32_mavlink_uart::msg::ServoState>::SharedPtr servo_state_pub_;
-    rclcpp::Service<stm32_mavlink_uart::srv::SetServoConfig>::SharedPtr servo_config_srv_;
+    rclcpp::Subscription<stm32_mavlink_msgs::msg::ServoCommand>::SharedPtr servo_cmd_sub_;
+    rclcpp::Publisher<stm32_mavlink_msgs::msg::ServoState>::SharedPtr servo_state_pub_;
+    rclcpp::Service<stm32_mavlink_msgs::srv::SetServoConfig>::SharedPtr servo_config_srv_;
     
     // Servo states
     struct ServoData {
@@ -47,9 +47,9 @@ private:
     std::mutex servo_mutex_;
     
     // Callbacks
-    void servoCommandCallback(const stm32_mavlink_uart::msg::ServoCommand::SharedPtr msg);
-    void servoConfigCallback(const std::shared_ptr<stm32_mavlink_uart::srv::SetServoConfig::Request> request,
-                            std::shared_ptr<stm32_mavlink_uart::srv::SetServoConfig::Response> response);
+    void servoCommandCallback(const stm32_mavlink_msgs::msg::ServoCommand::SharedPtr msg);
+    void servoConfigCallback(const std::shared_ptr<stm32_mavlink_msgs::srv::SetServoConfig::Request> request,
+                            std::shared_ptr<stm32_mavlink_msgs::srv::SetServoConfig::Response> response);
     
     void publishServoStates();
 };
