@@ -11,6 +11,10 @@
 
 namespace stm32_mavlink_uart {
 
+// Namespace aliases for shared messages
+namespace msg = stm32_mavlink_msgs::msg;
+namespace srv = stm32_mavlink_msgs::srv;
+
 class ServoController {
 public:
     ServoController(rclcpp::Node* node);

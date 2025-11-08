@@ -244,7 +244,7 @@ void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
         if (ok_pos != std::string::npos) {
             motor.state.status = motor.state.STATUS_OK;
         } else if (err_pos != std::string::npos) {
-            motor.state.status = motor.state.STATUS_ERROR; // General error (updated to match MAVLink protocol)
+            motor.state.status = motor.state.STATUS_CAN_ERROR; // General CAN error
         }
 
         // Position and velocity are not provided in text format, keep previous values

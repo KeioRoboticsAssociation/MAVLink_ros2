@@ -8,9 +8,13 @@
 #include "stm32_mavlink_msgs/msg/encoder_config.hpp"
 #include "stm32_mavlink_msgs/srv/set_encoder_config.hpp"
 #include "std_srvs/srv/trigger.hpp"
-#include "robomaster/mavlink.h"
+#include "common/mavlink.h"
 
 namespace stm32_mavlink_udp {
+
+// Namespace aliases for shared messages
+namespace msg = stm32_mavlink_msgs::msg;
+namespace srv = stm32_mavlink_msgs::srv;
 
 class EncoderInterface {
 public:

@@ -7,9 +7,13 @@
 #include "stm32_mavlink_msgs/msg/servo_command.hpp"
 #include "stm32_mavlink_msgs/msg/servo_state.hpp"
 #include "stm32_mavlink_msgs/srv/set_servo_config.hpp"
-#include "robomaster/mavlink.h"
+#include "common/mavlink.h"
 
 namespace stm32_mavlink_udp {
+
+// Namespace aliases for shared messages
+namespace msg = stm32_mavlink_msgs::msg;
+namespace srv = stm32_mavlink_msgs::srv;
 
 class ServoController {
 public:

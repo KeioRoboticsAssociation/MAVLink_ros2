@@ -1,5 +1,0 @@
-# Set DC Motor Configuration Service
-DCMotorConfig config
----
-bool success
-string message

@@ -12,7 +12,6 @@
 #include <arpa/inet.h>
 
 // MAVLink headers
-#include "robomaster/mavlink.h"
 #include "robomaster_motor/mavlink.h"
 
 // Component interfaces (local)
@@ -22,6 +21,10 @@
 #include "stm32_mavlink_udp/dcmotor_controller.hpp"
 
 namespace stm32_mavlink_udp {
+
+// Namespace aliases for shared messages
+namespace msg = stm32_mavlink_msgs::msg;
+namespace srv = stm32_mavlink_msgs::srv;
 
 class MAVLinkUDPNode : public rclcpp::Node {
 public:

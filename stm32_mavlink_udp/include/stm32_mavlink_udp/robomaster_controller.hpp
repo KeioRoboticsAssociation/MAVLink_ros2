@@ -14,6 +14,10 @@
 
 namespace stm32_mavlink_udp {
 
+// Namespace aliases for shared messages
+namespace msg = stm32_mavlink_msgs::msg;
+namespace srv = stm32_mavlink_msgs::srv;
+
 class RobomasterController {
 public:
     static constexpr uint8_t MAX_MOTORS = 8;
