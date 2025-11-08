@@ -17,7 +17,9 @@
  */
 class MAVLinkRoboMasterController {
 public:
-    static constexpr uint8_t MAX_MOTORS = 8;
+    static constexpr uint8_t MAX_MOTORS = 10;  // Support up to 10 RoboMaster motors
+    static constexpr uint8_t ROBOMASTER_ID_MIN = 20;  // RoboMaster motor ID range: 20-29
+    static constexpr uint8_t ROBOMASTER_ID_MAX = 29;
     static constexpr uint32_t TELEMETRY_RATE_MS = 100;  // 10Hz telemetry
     static constexpr uint32_t HEARTBEAT_RATE_MS = 1000; // 1Hz heartbeat
 

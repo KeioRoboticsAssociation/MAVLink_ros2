@@ -4,7 +4,7 @@
 std_msgs/Header header
 
 # Motor identification
-uint8 motor_id              # Motor ID (1-8)
+uint8 motor_id              # Motor ID (20-29 for RoboMaster motors)
 
 # Control mode - Determines motor control behavior (matches STM32 MAVLink MOTOR_CONTROL_MODE enum)
 # CONTROL_MODE_OPEN_LOOP (0): Open loop PWM/current control using target_current_ma

@@ -2,7 +2,7 @@
 # Simple brushed/brushless DC motor control interface
 
 # Motor identification
-uint8 motor_id          # Motor ID (typically 10 for DC motor, separate from RoboMaster motors)
+uint8 motor_id          # Motor ID (10-15 for direct PWM DC motors)
 
 # Control mode - Determines interpretation of target_value
 # CONTROL_MODE_POSITION (0): Position control using target_value as radians

@@ -3,8 +3,8 @@
 namespace stm32_mavlink_uart {
 
 ServoController::ServoController(rclcpp::Node* node) : node_(node) {
-    // Initialize servo states (16 servos max)
-    servo_states_.resize(16);
+    // Initialize servo states (9 servos max, IDs 1-9)
+    servo_states_.resize(9);
     
     // Create ROS2 interfaces
     servo_cmd_sub_ = node_->create_subscription<stm32_mavlink_msgs::msg::ServoCommand>(
@@ -31,16 +31,15 @@ void ServoController::handleServoOutputRaw(const mavlink_servo_output_raw_t& ser
     //     static_cast<uint32_t>(servo_raw.time_usec), servo_raw.port, 
     //     servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw);
     
-    // Update servo states from MAVLink data
-    uint16_t servo_values[16] = {
+    // Update servo states from MAVLink data (IDs 1-9)
+    uint16_t servo_values[9] = {
         servo_raw.servo1_raw, servo_raw.servo2_raw, servo_raw.servo3_raw, servo_raw.servo4_raw,
         servo_raw.servo5_raw, servo_raw.servo6_raw, servo_raw.servo7_raw, servo_raw.servo8_raw,
-        servo_raw.servo9_raw, servo_raw.servo10_raw, servo_raw.servo11_raw, servo_raw.servo12_raw,
-        servo_raw.servo13_raw, servo_raw.servo14_raw, servo_raw.servo15_raw, servo_raw.servo16_raw
+        servo_raw.servo9_raw
     };
-    
+
     // 各サーボの値を処理
-    for (size_t i = 0; i < 16 && i < servo_states_.size(); i++) {
+    for (size_t i = 0; i < 9 && i < servo_states_.size(); i++) {
         uint16_t old_pulse = servo_states_[i].pulse_us;
         bool old_enabled = servo_states_[i].enabled;
 

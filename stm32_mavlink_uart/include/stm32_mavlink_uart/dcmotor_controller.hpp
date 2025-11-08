@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <memory>
 #include <queue>
+#include <map>
 
 #include "stm32_mavlink_msgs/msg/dc_motor_command.hpp"
 #include "stm32_mavlink_msgs/msg/dc_motor_state.hpp"
@@ -75,12 +76,15 @@ private:
     uint8_t mapControlMode(uint8_t ros_mode);
     uint8_t mapStatusFromText(const std::string& status_text);
 
-    // State tracking
-    rclcpp::Time last_motor_update_;
-    bool motor_connected_;
+    // State tracking (per motor ID)
+    std::map<uint8_t, rclcpp::Time> last_motor_update_;  // Motor ID -> last update time
+    std::map<uint8_t, bool> motor_connected_;             // Motor ID -> connection status
+    std::map<uint8_t, msg::DCMotorState> motor_states_;  // Motor ID -> state
+    std::map<uint8_t, msg::DCMotorConfig> motor_configs_; // Motor ID -> config
 
     // Constants
-    static constexpr uint8_t DC_MOTOR_ID = 10;  // Match STM32 motor ID
+    static constexpr uint8_t DC_MOTOR_ID_MIN = 10;  // DC motor ID range: 10-15 (direct PWM motors)
+    static constexpr uint8_t DC_MOTOR_ID_MAX = 15;
     static constexpr uint32_t MOTOR_TIMEOUT_MS = 2000;
 };
 

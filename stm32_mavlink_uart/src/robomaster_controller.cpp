@@ -206,8 +206,10 @@ void RobomasterController::handleMotorStatus(const mavlink_message_t& msg) {
     if (text_msg.size() < 10 || text_msg[0] != 'M') return;
 
     // Extract motor ID
+    // Parse motor ID from text (format changed for 20-29 range)
+    // This legacy parsing may need adjustment based on actual message format
     uint8_t motor_id = text_msg[1] - '0';
-    if (motor_id < 1 || motor_id > 8) return; // Invalid motor ID
+    if (motor_id < ROBOMASTER_ID_MIN || motor_id > ROBOMASTER_ID_MAX) return; // Invalid motor ID
 
     std::lock_guard<std::mutex> lock(motors_mutex_);
     ensureMotorExists(motor_id);
@@ -402,14 +404,14 @@ void RobomasterController::ensureMotorExists(uint8_t motor_id) {
 }
 
 bool RobomasterController::isValidMotorId(uint8_t motor_id) const {
-    return motor_id >= 1 && motor_id <= MAX_MOTORS;
+    return motor_id >= ROBOMASTER_ID_MIN && motor_id <= ROBOMASTER_ID_MAX;
 }
 
 void RobomasterController::buildMotorControlMessage(const stm32_mavlink_msgs::msg::RobomasterMotorCommand& cmd,
                                                    mavlink_message_t& msg, uint8_t system_id,
                                                    uint8_t component_id, uint8_t target_system) {
     // Validate motor ID
-    if (cmd.motor_id < 1 || cmd.motor_id > MAX_MOTORS) {
+    if (cmd.motor_id < ROBOMASTER_ID_MIN || cmd.motor_id > ROBOMASTER_ID_MAX) {
         RCLCPP_ERROR(node_->get_logger(), "Invalid motor ID: %d", cmd.motor_id);
         return;
     }

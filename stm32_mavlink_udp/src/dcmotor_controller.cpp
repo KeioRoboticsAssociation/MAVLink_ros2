@@ -5,7 +5,7 @@
 namespace stm32_mavlink_udp {
 
 DCMotorController::DCMotorController(rclcpp::Node* node)
-    : node_(node), motor_connected_(false), last_motor_update_(node->now()) {
+    : node_(node) {
 
     // Create ROS2 publishers
     motor_state_pub_ = node_->create_publisher<msg::DCMotorState>("/dcmotor/state", 10);
@@ -24,43 +24,60 @@ DCMotorController::DCMotorController(rclcpp::Node* node)
         "/dcmotor/get_config",
         std::bind(&DCMotorController::getConfigCallback, this, std::placeholders::_1, std::placeholders::_2));
 
-    // Initialize motor state
-    current_state_.motor_id = DC_MOTOR_ID;
-    current_state_.position_rad = 0.0;
-    current_state_.velocity_rad_s = 0.0;
-    current_state_.current_a = 0.0;
-    current_state_.temperature_c = 0.0;
-    current_state_.status = 1; // NOT_INITIALIZED
-    current_state_.enabled = false;
+    // Initialize state for each DC motor (IDs 10-15 for direct PWM motors)
+    for (uint8_t motor_id = DC_MOTOR_ID_MIN; motor_id <= DC_MOTOR_ID_MAX; motor_id++) {
+        // Initialize motor state
+        msg::DCMotorState state;
+        state.motor_id = motor_id;
+        state.position_rad = 0.0;
+        state.velocity_rad_s = 0.0;
+        state.current_a = 0.0;
+        state.temperature_c = 0.0;
+        state.status = 1; // STATUS_NOT_INITIALIZED
+        state.enabled = false;
+        motor_states_[motor_id] = state;
 
-    // Initialize motor config with default values (matching STM32 setup)
-    current_config_.motor_id = DC_MOTOR_ID;
-    current_config_.mode = 0; // POSITION_CONTROL
-    current_config_.speed_kp = 0.8f;
-    current_config_.speed_ki = 0.0f;
-    current_config_.speed_kd = 0.0f;
-    current_config_.speed_max_integral = 10.0f;
-    current_config_.speed_max_output = 1.0f;
-    current_config_.position_kp = 3.0f;
-    current_config_.position_ki = 0.0f;
-    current_config_.position_kd = 0.0f;
-    current_config_.position_max_integral = 100.0f;
-    current_config_.position_max_output = 10.0f;
-    current_config_.max_speed_rad_s = 15.0f;
-    current_config_.max_acceleration_rad_s2 = 50.0f;
-    current_config_.use_position_limits = true;
-    current_config_.position_limit_min_rad = -314.159f; // -100 * pi
-    current_config_.position_limit_max_rad = 314.159f;  // +100 * pi
-    current_config_.watchdog_timeout_ms = 2000;
-    current_config_.control_period_ms = 10;
+        // Initialize motor config with default values (matching STM32 setup)
+        msg::DCMotorConfig config;
+        config.motor_id = motor_id;
+        config.mode = 0; // POSITION_CONTROL
+        config.speed_kp = 0.8f;
+        config.speed_ki = 0.0f;
+        config.speed_kd = 0.0f;
+        config.speed_max_integral = 10.0f;
+        config.speed_max_output = 1.0f;
+        config.position_kp = 3.0f;
+        config.position_ki = 0.0f;
+        config.position_kd = 0.0f;
+        config.position_max_integral = 100.0f;
+        config.position_max_output = 10.0f;
+        config.max_speed_rad_s = 15.0f;
+        config.max_acceleration_rad_s2 = 50.0f;
+        config.use_position_limits = true;
+        config.position_limit_min_rad = -314.159f; // -100 * pi
+        config.position_limit_max_rad = 314.159f;  // +100 * pi
+        config.watchdog_timeout_ms = 2000;
+        config.control_period_ms = 10;
+        motor_configs_[motor_id] = config;
 
-    RCLCPP_INFO(node_->get_logger(), "DC Motor Controller initialized for motor ID %d", DC_MOTOR_ID);
+        // Initialize connection tracking
+        motor_connected_[motor_id] = false;
+        last_motor_update_[motor_id] = node_->now();
+    }
+
+    // Initialize legacy state for backward compatibility
+    current_state_ = motor_states_[DC_MOTOR_ID_MIN];
+    current_config_ = motor_configs_[DC_MOTOR_ID_MIN];
+
+    RCLCPP_INFO(node_->get_logger(), "DC Motor Controller initialized for motor IDs %d-%d",
+                DC_MOTOR_ID_MIN, DC_MOTOR_ID_MAX);
 }
 
 void DCMotorController::motorCommandCallback(const msg::DCMotorCommand::SharedPtr msg) {
-    if (msg->motor_id != DC_MOTOR_ID) {
-        RCLCPP_WARN(node_->get_logger(), "Received command for motor ID %d, but DC motor uses ID %d",
-                   msg->motor_id, DC_MOTOR_ID);
+    // Validate motor ID is within DC motor range (10-15)
+    if (msg->motor_id < DC_MOTOR_ID_MIN || msg->motor_id > DC_MOTOR_ID_MAX) {
+        RCLCPP_WARN(node_->get_logger(), "Received command for motor ID %d, but DC motors use IDs %d-%d",
+                   msg->motor_id, DC_MOTOR_ID_MIN, DC_MOTOR_ID_MAX);
         return;
     }
 
@@ -194,11 +211,14 @@ void DCMotorController::handleMotorStatus(const mavlink_message_t& msg) {
         std::string status_str(statustext.text);
 
         // Look for DC motor status messages in the format:
-        // "DC10: pos=1.23 vel=4.56 cur=0.78 temp=25 EN OK"
-        if (status_str.find("DC" + std::to_string(DC_MOTOR_ID) + ":") != std::string::npos) {
-            parseMotorStatusText(status_str);
-            last_motor_update_ = node_->now();
-            motor_connected_ = true;
+        // "DC10: pos=1.23 vel=4.56 cur=0.78 temp=25 EN OK" or "DC11: ..."
+        for (uint8_t motor_id = DC_MOTOR_ID_MIN; motor_id <= DC_MOTOR_ID_MAX; motor_id++) {
+            if (status_str.find("DC" + std::to_string(motor_id) + ":") != std::string::npos) {
+                parseMotorStatusText(status_str);
+                last_motor_update_[motor_id] = node_->now();
+                motor_connected_[motor_id] = true;
+                break;
+            }
         }
     }
 }
@@ -257,31 +277,36 @@ void DCMotorController::handleCommandAck(const mavlink_message_t& msg) {
 }
 
 void DCMotorController::update() {
-    // Check for motor timeout
+    // Check for motor timeout for each motor
     auto now = node_->now();
-    if (motor_connected_ && (now - last_motor_update_).seconds() > (MOTOR_TIMEOUT_MS / 1000.0)) {
-        motor_connected_ = false;
-        current_state_.status = 5; // TIMEOUT
-        RCLCPP_WARN(node_->get_logger(), "DC motor communication timeout");
+    for (uint8_t motor_id = DC_MOTOR_ID_MIN; motor_id <= DC_MOTOR_ID_MAX; motor_id++) {
+        if (motor_connected_[motor_id] &&
+            (now - last_motor_update_[motor_id]).seconds() > (MOTOR_TIMEOUT_MS / 1000.0)) {
+            motor_connected_[motor_id] = false;
+            motor_states_[motor_id].status = 5; // STATUS_TIMEOUT
+            RCLCPP_WARN(node_->get_logger(), "DC motor %d communication timeout", motor_id);
+        }
     }
 
-    // Publish current motor state
-    current_state_.timestamp = now.nanoseconds();
-    motor_state_pub_->publish(current_state_);
+    // Update legacy state for backward compatibility
+    current_state_ = motor_states_[DC_MOTOR_ID_MIN];
 }
 
 void DCMotorController::setConfigCallback(
     const std::shared_ptr<srv::SetDCMotorConfig::Request> request,
     std::shared_ptr<srv::SetDCMotorConfig::Response> response) {
 
-    if (request->config.motor_id != DC_MOTOR_ID) {
+    uint8_t motor_id = request->config.motor_id;
+    if (motor_id < DC_MOTOR_ID_MIN || motor_id > DC_MOTOR_ID_MAX) {
         response->success = false;
-        response->message = "Invalid motor ID for DC motor";
+        response->message = "Invalid motor ID: DC motors use IDs " +
+                           std::to_string(DC_MOTOR_ID_MIN) + "-" + std::to_string(DC_MOTOR_ID_MAX);
         return;
     }
 
-    // Update local config
-    current_config_ = request->config;
+    // Update local config for this motor
+    motor_configs_[motor_id] = request->config;
+    current_config_ = request->config;  // Update legacy state
 
     // Add to pending configs for transmission
     pending_configs_.push(request->config);
@@ -289,45 +314,50 @@ void DCMotorController::setConfigCallback(
     response->success = true;
     response->message = "DC motor configuration queued for transmission";
 
-    RCLCPP_INFO(node_->get_logger(), "DC motor configuration updated");
+    RCLCPP_INFO(node_->get_logger(), "DC motor %d configuration updated", motor_id);
 }
 
 void DCMotorController::getConfigCallback(
     const std::shared_ptr<srv::GetDCMotorConfig::Request> request,
     std::shared_ptr<srv::GetDCMotorConfig::Response> response) {
 
-    if (request->motor_id != DC_MOTOR_ID) {
+    uint8_t motor_id = request->motor_id;
+    if (motor_id < DC_MOTOR_ID_MIN || motor_id > DC_MOTOR_ID_MAX) {
         response->success = false;
-        response->message = "Invalid motor ID for DC motor";
+        response->message = "Invalid motor ID: DC motors use IDs " +
+                           std::to_string(DC_MOTOR_ID_MIN) + "-" + std::to_string(DC_MOTOR_ID_MAX);
         return;
     }
 
     response->success = true;
-    response->config = current_config_;
+    response->config = motor_configs_[motor_id];
     response->message = "DC motor configuration retrieved";
 }
 
 void DCMotorController::parseMotorStatusText(const std::string& status_text) {
-    // Parse status text like: "DC10: pos=1.23 vel=4.56 cur=0.78 temp=25 EN OK"
+    // Parse status text like: "DC10: pos=1.23 vel=4.56 cur=0.78 temp=25 EN OK" or "DC11: ..."
     std::regex pattern(R"(DC(\d+):\s*pos=([-\d.]+)\s*vel=([-\d.]+)\s*cur=([-\d.]+)\s*temp=([-\d.]+)\s*EN\s*(OK|ERR))");
     std::smatch matches;
 
     if (std::regex_search(status_text, matches, pattern)) {
         uint8_t motor_id = std::stoi(matches[1].str());
 
-        if (motor_id == DC_MOTOR_ID) {
-            current_state_.position_rad = std::stof(matches[2].str());
-            current_state_.velocity_rad_s = std::stof(matches[3].str());
-            current_state_.current_a = std::stof(matches[4].str());
-            current_state_.temperature_c = std::stof(matches[5].str());
-            current_state_.enabled = true;
+        if (motor_id >= DC_MOTOR_ID_MIN && motor_id <= DC_MOTOR_ID_MAX) {
+            motor_states_[motor_id].position_rad = std::stof(matches[2].str());
+            motor_states_[motor_id].velocity_rad_s = std::stof(matches[3].str());
+            motor_states_[motor_id].current_a = std::stof(matches[4].str());
+            motor_states_[motor_id].temperature_c = std::stof(matches[5].str());
+            motor_states_[motor_id].enabled = true;
 
             std::string status = matches[6].str();
-            current_state_.status = (status == "OK") ? 0 : 2; // OK or ERROR
+            motor_states_[motor_id].status = (status == "OK") ? 0 : 2; // OK or ERROR
+
+            // Update legacy state
+            current_state_ = motor_states_[motor_id];
 
             RCLCPP_DEBUG(node_->get_logger(),
-                        "DC motor state: pos=%.3f, vel=%.3f, cur=%.3f, temp=%.1f, status=%s",
-                        current_state_.position_rad, current_state_.velocity_rad_s,
+                        "DC motor %d state: pos=%.3f, vel=%.3f, cur=%.3f, temp=%.1f, status=%s",
+                        motor_id, current_state_.position_rad, current_state_.velocity_rad_s,
                         current_state_.current_a, current_state_.temperature_c, status.c_str());
         }
     } else {
@@ -341,16 +371,21 @@ void DCMotorController::handleAttitudeMessage(const mavlink_message_t& msg) {
 
     // Extract position and velocity data as sent by STM32
     // roll = current position, pitch = target position, rollspeed = current velocity
-    current_state_.position_rad = attitude.roll;
-    current_state_.velocity_rad_s = attitude.rollspeed;
+    // Assume this is for motor ID 10 (default motor) if not specified in message
+    uint8_t motor_id = DC_MOTOR_ID_MIN;
+    motor_states_[motor_id].position_rad = attitude.roll;
+    motor_states_[motor_id].velocity_rad_s = attitude.rollspeed;
 
     // Update connection status
-    last_motor_update_ = node_->now();
-    motor_connected_ = true;
+    last_motor_update_[motor_id] = node_->now();
+    motor_connected_[motor_id] = true;
+
+    // Update legacy state
+    current_state_ = motor_states_[motor_id];
 
     RCLCPP_DEBUG(node_->get_logger(),
-                "DC Motor attitude: pos=%.3f rad, target=%.3f rad, vel=%.3f rad/s",
-                attitude.roll, attitude.pitch, attitude.rollspeed);
+                "DC Motor %d attitude: pos=%.3f rad, target=%.3f rad, vel=%.3f rad/s",
+                motor_id, attitude.roll, attitude.pitch, attitude.rollspeed);
 }
 
 void DCMotorController::handleServoOutputRawMessage(const mavlink_message_t& msg) {
@@ -360,23 +395,27 @@ void DCMotorController::handleServoOutputRawMessage(const mavlink_message_t& msg
     // Extract motor status data as sent by STM32
     // port = motor_id, servo1_raw = current duty, servo2_raw = target duty
     // servo3_raw = enabled, servo4_raw = mode, servo5_raw = status
-    if (servo_output.port == DC_MOTOR_ID) {
+    uint8_t motor_id = servo_output.port;
+    if (motor_id >= DC_MOTOR_ID_MIN && motor_id <= DC_MOTOR_ID_MAX) {
         // Convert duty cycle back from encoded format (500-2000 -> -1.0 to +1.0)
-        current_state_.current_duty_cycle = ((servo_output.servo1_raw - 1250.0f) / 750.0f);
-        current_state_.target_duty_cycle = ((servo_output.servo2_raw - 1250.0f) / 750.0f);
+        motor_states_[motor_id].current_duty_cycle = ((servo_output.servo1_raw - 1250.0f) / 750.0f);
+        motor_states_[motor_id].target_duty_cycle = ((servo_output.servo2_raw - 1250.0f) / 750.0f);
 
-        current_state_.enabled = (servo_output.servo3_raw > 1250); // > 1.25 means enabled (new neutral)
-        current_state_.control_mode = servo_output.servo4_raw / 500; // Decode mode
-        current_state_.status = servo_output.servo5_raw / 200; // Decode status
+        motor_states_[motor_id].enabled = (servo_output.servo3_raw > 1250); // > 1.25 means enabled (new neutral)
+        motor_states_[motor_id].control_mode = servo_output.servo4_raw / 500; // Decode mode
+        motor_states_[motor_id].status = servo_output.servo5_raw / 200; // Decode status
 
         // Update connection status
-        last_motor_update_ = node_->now();
-        motor_connected_ = true;
+        last_motor_update_[motor_id] = node_->now();
+        motor_connected_[motor_id] = true;
+
+        // Update legacy state
+        current_state_ = motor_states_[motor_id];
 
         RCLCPP_DEBUG(node_->get_logger(),
-                    "DC Motor servo output: duty=%.3f, target_duty=%.3f, enabled=%d, mode=%d, status=%d",
-                    current_state_.current_duty_cycle, current_state_.target_duty_cycle,
-                    current_state_.enabled, current_state_.control_mode, current_state_.status);
+                    "DC Motor %d servo output: duty=%.3f, target_duty=%.3f, enabled=%d, mode=%d, status=%d",
+                    motor_id, motor_states_[motor_id].current_duty_cycle, motor_states_[motor_id].target_duty_cycle,
+                    motor_states_[motor_id].enabled, motor_states_[motor_id].control_mode, motor_states_[motor_id].status);
     }
 }
 
@@ -386,15 +425,21 @@ void DCMotorController::handleLocalPositionMessage(const mavlink_message_t& msg)
 
     // Extract velocity data as sent by STM32
     // x = current speed, y = target speed
-    current_state_.velocity_rad_s = local_pos.x;
-    current_state_.target_velocity_rad_s = local_pos.y;
+    // Assume this is for motor ID 10 (default motor) if not specified in message
+    uint8_t motor_id = DC_MOTOR_ID_MIN;
+    motor_states_[motor_id].velocity_rad_s = local_pos.x;
+    motor_states_[motor_id].target_velocity_rad_s = local_pos.y;
 
     // Update connection status
-    last_motor_update_ = node_->now();
-    motor_connected_ = true;
+    last_motor_update_[motor_id] = node_->now();
+    motor_connected_[motor_id] = true;
+
+    // Update legacy state
+    current_state_ = motor_states_[motor_id];
 
     RCLCPP_DEBUG(node_->get_logger(),
-                "DC Motor local position: vel=%.3f rad/s, target_vel=%.3f rad/s",
+                "DC Motor %d local position: vel=%.3f rad/s, target_vel=%.3f rad/s",
+                motor_id,
                 local_pos.x, local_pos.y);
 }
 
