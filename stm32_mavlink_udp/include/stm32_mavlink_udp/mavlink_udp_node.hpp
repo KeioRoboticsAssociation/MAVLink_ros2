@@ -95,6 +95,10 @@ private:
     void handleServoOutputRaw(const mavlink_message_t& msg);
     void handleAttitude(const mavlink_message_t& msg);
     void handleCommandAck(const mavlink_message_t& msg);
+
+    // Custom motor control message handlers
+    void handleDCMotorStatus(const mavlink_message_t& msg);
+    void handleRobomasterMotorStatus(const mavlink_message_t& msg);
 };
 
 } // namespace stm32_mavlink_udp

@@ -840,7 +840,7 @@ class CalibrationManagerWidget(QWidget):
 
         selection_layout.addWidget(QLabel("Device ID:"))
         self.device_id_spinbox = QSpinBox()
-        self.device_id_spinbox.setRange(1, 16)
+        self.device_id_spinbox.setRange(1, 9)  # Servo ID range: 1-9
         selection_layout.addWidget(self.device_id_spinbox)
 
         self.calibrate_button = QPushButton("Start Calibration")

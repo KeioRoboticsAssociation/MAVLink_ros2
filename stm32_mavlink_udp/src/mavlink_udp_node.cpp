@@ -231,6 +231,16 @@ void MAVLinkUDPNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
         case MAVLINK_MSG_ID_COMMAND_ACK:
             handleCommandAck(msg);
             break;
+
+        // Custom motor control messages from MAVLink protocol
+        case MAVLINK_MSG_ID_DC_MOTOR_STATUS:
+            handleDCMotorStatus(msg);
+            break;
+
+        case MAVLINK_MSG_ID_ROBOMASTER_MOTOR_STATUS:
+            handleRobomasterMotorStatus(msg);
+            break;
+
         default:
             break;
     }
@@ -349,6 +359,34 @@ void MAVLinkUDPNode::handleCommandAck(const mavlink_message_t& msg) {
     mavlink_msg_command_ack_decode(&msg, &ack);
     robomaster_controller_->handleCommandAck(msg);
     RCLCPP_DEBUG(this->get_logger(), "UDP Command ACK: command=%d, result=%d", ack.command, ack.result);
+}
+
+void MAVLinkUDPNode::handleDCMotorStatus(const mavlink_message_t& msg) {
+    // Decode the DC motor status message
+    mavlink_dc_motor_status_t dc_status;
+    mavlink_msg_dc_motor_status_decode(&msg, &dc_status);
+
+    RCLCPP_DEBUG(this->get_logger(),
+        "DC Motor %d: pos=%.2f rad, vel=%.2f rad/s, duty=%.2f, mode=%d, status=%d",
+        dc_status.motor_id, dc_status.position_rad, dc_status.speed_rad_s,
+        dc_status.duty_cycle, dc_status.control_mode, dc_status.status);
+
+    // Forward to DC motor controller
+    dcmotor_controller_->handleMotorStatus(msg);
+}
+
+void MAVLinkUDPNode::handleRobomasterMotorStatus(const mavlink_message_t& msg) {
+    // Decode the RoboMaster motor status message
+    mavlink_robomaster_motor_status_t rm_status;
+    mavlink_msg_robomaster_motor_status_decode(&msg, &rm_status);
+
+    RCLCPP_DEBUG(this->get_logger(),
+        "RoboMaster Motor %d: pos=%.2f rad, vel=%.2f rad/s, mode=%d, status=%d",
+        rm_status.motor_id, rm_status.current_position_rad, rm_status.current_speed_rad_s,
+        rm_status.control_mode, rm_status.status);
+
+    // Forward to RoboMaster controller
+    robomaster_controller_->handleMotorStatus(msg);
 }
 
 } // namespace stm32_mavlink_udp

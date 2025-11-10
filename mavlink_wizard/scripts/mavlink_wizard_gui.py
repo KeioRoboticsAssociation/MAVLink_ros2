@@ -75,9 +75,11 @@ class ConfigurationManager:
                 'heartbeat_timeout': 10.0
             },
             'devices': {
-                'servo_ids': list(range(1, 17)),
+                'servo_ids': list(range(1, 10)),      # Servos: IDs 1-9
                 'encoder_ids': list(range(1, 17)),
-                'motor_ids': list(range(1, 9))
+                'motor_ids': list(range(20, 30)),    # RoboMaster: IDs 20-29
+                'dcmotor_ids': list(range(10, 16)),  # DC Motors: IDs 10-15
+                'rs485_ids': list(range(30, 50))     # RS485 Motors: IDs 30-49
             },
             'logging': {
                 'level': 'INFO',
@@ -189,10 +191,11 @@ class DeviceTreeWidget(QTreeWidget):
         self.itemClicked.connect(self.on_item_clicked)
 
         # Create top-level categories
-        self.servo_category = QTreeWidgetItem(self, ['Servos', '', '', ''])
+        self.servo_category = QTreeWidgetItem(self, ['Servos (1-9)', '', '', ''])
         self.encoder_category = QTreeWidgetItem(self, ['Encoders', '', '', ''])
-        self.motor_category = QTreeWidgetItem(self, ['Motors', '', '', ''])
-        self.dcmotor_category = QTreeWidgetItem(self, ['DC Motors', '', '', ''])
+        self.motor_category = QTreeWidgetItem(self, ['RoboMaster (20-29)', '', '', ''])
+        self.dcmotor_category = QTreeWidgetItem(self, ['DC Motors (10-15)', '', '', ''])
+        self.rs485_category = QTreeWidgetItem(self, ['RS485 Motors (30-49)', '', '', ''])
 
         self.expandAll()
 
@@ -202,6 +205,7 @@ class DeviceTreeWidget(QTreeWidget):
         self.encoder_category.takeChildren()
         self.motor_category.takeChildren()
         self.dcmotor_category.takeChildren()
+        self.rs485_category.takeChildren()
 
     def add_device(self, device_type: str, device_id: int, status: str = 'Unknown'):
         """Add a device to the tree"""
@@ -213,6 +217,8 @@ class DeviceTreeWidget(QTreeWidget):
             parent = self.motor_category
         elif device_type == 'dcmotor':
             parent = self.dcmotor_category
+        elif device_type == 'rs485':
+            parent = self.rs485_category
         else:
             return
 
@@ -635,8 +641,8 @@ class MotorControlWidget(QWidget):
         motor_layout = QHBoxLayout()
         motor_layout.addWidget(QLabel("Motor ID:"))
         self.motor_id_spinbox = QSpinBox()
-        self.motor_id_spinbox.setRange(1, 8)
-        self.motor_id_spinbox.setValue(5)  # Default to motor 5
+        self.motor_id_spinbox.setRange(20, 29)  # RoboMaster motor ID range: 20-29
+        self.motor_id_spinbox.setValue(20)  # Default to motor 20
         self.motor_id_spinbox.valueChanged.connect(self.on_motor_changed)
         motor_layout.addWidget(self.motor_id_spinbox)
         motor_layout.addStretch()
@@ -799,11 +805,16 @@ class DCMotorControlWidget(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout()
 
-        # Motor info
-        info_layout = QHBoxLayout()
-        info_layout.addWidget(QLabel("DC Motor ID: 10"))
-        info_layout.addStretch()
-        layout.addLayout(info_layout)
+        # Motor ID selection
+        id_layout = QHBoxLayout()
+        id_layout.addWidget(QLabel("DC Motor ID:"))
+        self.motor_id_spinbox = QSpinBox()
+        self.motor_id_spinbox.setRange(10, 15)  # DC motor ID range: 10-15
+        self.motor_id_spinbox.setValue(10)  # Default to motor 10
+        self.motor_id_spinbox.valueChanged.connect(self.on_motor_id_changed)
+        id_layout.addWidget(self.motor_id_spinbox)
+        id_layout.addStretch()
+        layout.addLayout(id_layout)
 
         # Control mode selection
         mode_group = QGroupBox("Control Mode")
@@ -899,6 +910,11 @@ class DCMotorControlWidget(QWidget):
         layout.addStretch()
         self.setLayout(layout)
 
+    def on_motor_id_changed(self, motor_id):
+        """Handle motor ID change"""
+        self.current_motor_id = motor_id
+        logger.info(f"DC Motor ID changed to: {motor_id}")
+
     def send_command(self):
         """Send motor control command"""
         if not self.dcmotor_command_publisher:
@@ -961,6 +977,316 @@ class DCMotorControlWidget(QWidget):
         self.enable_checkbox.setChecked(state_msg.enabled)
 
 
+class PIDTuningWidget(QWidget):
+    """Widget for tuning PID gains via MAVLink parameters"""
+
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        # Motor type and ID selection
+        selection_group = QGroupBox("Motor Selection")
+        selection_layout = QFormLayout()
+
+        self.motor_type_combo = QComboBox()
+        self.motor_type_combo.addItems(["RoboMaster Motor", "DC Motor"])
+        self.motor_type_combo.currentTextChanged.connect(self.on_motor_type_changed)
+        selection_layout.addRow("Motor Type:", self.motor_type_combo)
+
+        self.motor_id_spinbox = QSpinBox()
+        self.motor_id_spinbox.setRange(20, 29)  # RoboMaster default
+        selection_layout.addRow("Motor ID:", self.motor_id_spinbox)
+
+        selection_group.setLayout(selection_layout)
+        layout.addWidget(selection_group)
+
+        # PID Gains
+        pid_group = QGroupBox("PID Gains")
+        pid_layout = QVBoxLayout()
+
+        # Speed/Velocity PID
+        speed_group = QGroupBox("Speed/Velocity Control")
+        speed_layout = QFormLayout()
+
+        self.speed_kp_spinbox = QDoubleSpinBox()
+        self.speed_kp_spinbox.setRange(0.0, 100.0)
+        self.speed_kp_spinbox.setDecimals(2)
+        self.speed_kp_spinbox.setSingleStep(0.1)
+        speed_layout.addRow("Kp:", self.speed_kp_spinbox)
+
+        self.speed_ki_spinbox = QDoubleSpinBox()
+        self.speed_ki_spinbox.setRange(0.0, 10.0)
+        self.speed_ki_spinbox.setDecimals(3)
+        self.speed_ki_spinbox.setSingleStep(0.01)
+        speed_layout.addRow("Ki:", self.speed_ki_spinbox)
+
+        self.speed_kd_spinbox = QDoubleSpinBox()
+        self.speed_kd_spinbox.setRange(0.0, 10.0)
+        self.speed_kd_spinbox.setDecimals(3)
+        self.speed_kd_spinbox.setSingleStep(0.01)
+        speed_layout.addRow("Kd:", self.speed_kd_spinbox)
+
+        speed_group.setLayout(speed_layout)
+        pid_layout.addWidget(speed_group)
+
+        # Position/Angle PID
+        position_group = QGroupBox("Position/Angle Control")
+        position_layout = QFormLayout()
+
+        self.pos_kp_spinbox = QDoubleSpinBox()
+        self.pos_kp_spinbox.setRange(0.0, 10.0)
+        self.pos_kp_spinbox.setDecimals(3)
+        self.pos_kp_spinbox.setSingleStep(0.01)
+        position_layout.addRow("Kp:", self.pos_kp_spinbox)
+
+        self.pos_ki_spinbox = QDoubleSpinBox()
+        self.pos_ki_spinbox.setRange(0.0, 10.0)
+        self.pos_ki_spinbox.setDecimals(3)
+        self.pos_ki_spinbox.setSingleStep(0.01)
+        position_layout.addRow("Ki:", self.pos_ki_spinbox)
+
+        self.pos_kd_spinbox = QDoubleSpinBox()
+        self.pos_kd_spinbox.setRange(0.0, 10.0)
+        self.pos_kd_spinbox.setDecimals(3)
+        self.pos_kd_spinbox.setSingleStep(0.01)
+        position_layout.addRow("Kd:", self.pos_kd_spinbox)
+
+        position_group.setLayout(position_layout)
+        pid_layout.addWidget(position_group)
+
+        pid_group.setLayout(pid_layout)
+        layout.addWidget(pid_group)
+
+        # Action buttons
+        button_layout = QHBoxLayout()
+
+        self.read_button = QPushButton("Read from STM32")
+        self.read_button.clicked.connect(self.read_pid_gains)
+        button_layout.addWidget(self.read_button)
+
+        self.write_button = QPushButton("Write to STM32")
+        self.write_button.clicked.connect(self.write_pid_gains)
+        self.write_button.setStyleSheet("background-color: #4CAF50; color: white;")
+        button_layout.addWidget(self.write_button)
+
+        self.reset_button = QPushButton("Reset to Defaults")
+        self.reset_button.clicked.connect(self.reset_to_defaults)
+        button_layout.addWidget(self.reset_button)
+
+        layout.addLayout(button_layout)
+
+        # Status display
+        status_group = QGroupBox("Status")
+        status_layout = QVBoxLayout()
+
+        self.status_text = QLabel("Not connected. Use MAVLink parameter services to tune PID gains.")
+        self.status_text.setWordWrap(True)
+        status_layout.addWidget(self.status_text)
+
+        status_group.setLayout(status_layout)
+        layout.addWidget(status_group)
+
+        # Info label
+        info_label = QLabel(
+            "<b>Note:</b> PID tuning uses standard MAVLink PARAM_* messages.<br>"
+            "Parameter names follow the format:<br>"
+            "• RoboMaster: <code>RM_&lt;ID&gt;_SPD_KP</code>, <code>RM_&lt;ID&gt;_ANG_KI</code>, etc.<br>"
+            "• DC Motors: <code>DC_&lt;ID&gt;_SPD_KP</code>, <code>DC_&lt;ID&gt;_POS_KD</code>, etc.<br>"
+            "Changes take effect immediately without reboot."
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        layout.addStretch()
+        self.setLayout(layout)
+
+    def on_motor_type_changed(self, motor_type):
+        """Update motor ID range based on selected type"""
+        if motor_type == "RoboMaster Motor":
+            self.motor_id_spinbox.setRange(20, 29)
+            self.motor_id_spinbox.setValue(20)
+        else:  # DC Motor
+            self.motor_id_spinbox.setRange(10, 15)
+            self.motor_id_spinbox.setValue(10)
+
+    def read_pid_gains(self):
+        """Read PID gains from STM32 via MAVLink parameters"""
+        # TODO: Implement MAVLink PARAM_REQUEST_READ
+        QMessageBox.information(self, "Not Implemented",
+            "PID gain reading via MAVLink parameters is not yet implemented in the wizard.\n\n"
+            "The H753 firmware supports standard MAVLink PARAM_* messages.\n"
+            "You can use QGroundControl or pymavlink to read/write parameters:\n\n"
+            f"Parameter prefix: {self.get_param_prefix()}_*")
+        logger.warning("PID tuning via wizard not yet implemented - use QGroundControl or pymavlink")
+
+    def write_pid_gains(self):
+        """Write PID gains to STM32 via MAVLink parameters"""
+        # TODO: Implement MAVLink PARAM_SET
+        QMessageBox.information(self, "Not Implemented",
+            "PID gain writing via MAVLink parameters is not yet implemented in the wizard.\n\n"
+            "The H753 firmware supports standard MAVLink PARAM_* messages.\n"
+            "You can use QGroundControl or pymavlink to read/write parameters.")
+        logger.warning("PID tuning via wizard not yet implemented")
+
+    def reset_to_defaults(self):
+        """Reset PID gains to default values"""
+        motor_type = self.motor_type_combo.currentText()
+
+        if motor_type == "RoboMaster Motor":
+            # RoboMaster defaults (from H753 firmware)
+            self.speed_kp_spinbox.setValue(50.0)
+            self.speed_ki_spinbox.setValue(0.1)
+            self.speed_kd_spinbox.setValue(0.0)
+            self.pos_kp_spinbox.setValue(0.1)
+            self.pos_ki_spinbox.setValue(0.0)
+            self.pos_kd_spinbox.setValue(0.0)
+        else:  # DC Motor
+            # DC Motor defaults (from H753 firmware)
+            self.speed_kp_spinbox.setValue(0.1)
+            self.speed_ki_spinbox.setValue(0.05)
+            self.speed_kd_spinbox.setValue(0.0)
+            self.pos_kp_spinbox.setValue(0.5)
+            self.pos_ki_spinbox.setValue(0.0)
+            self.pos_kd_spinbox.setValue(0.1)
+
+        self.status_text.setText("Default values loaded (not yet sent to STM32)")
+
+    def get_param_prefix(self):
+        """Get MAVLink parameter prefix for current motor"""
+        motor_type = self.motor_type_combo.currentText()
+        motor_id = self.motor_id_spinbox.value()
+
+        if motor_type == "RoboMaster Motor":
+            return f"RM_{motor_id}"
+        else:
+            return f"DC_{motor_id}"
+
+
+class RS485MotorControlWidget(QWidget):
+    """Widget for controlling RS485 motors (Ikeya MD)"""
+
+    def __init__(self, rs485_command_publisher=None):
+        super().__init__()
+        self.rs485_command_publisher = rs485_command_publisher
+        self.current_motor_id = 30  # Default RS485 motor ID
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout()
+
+        # Motor ID selection
+        id_layout = QHBoxLayout()
+        id_layout.addWidget(QLabel("RS485 Motor ID:"))
+        self.motor_id_spinbox = QSpinBox()
+        self.motor_id_spinbox.setRange(30, 49)  # RS485 motor ID range: 30-49
+        self.motor_id_spinbox.setValue(30)  # Default to motor 30
+        self.motor_id_spinbox.valueChanged.connect(self.on_motor_id_changed)
+        id_layout.addWidget(self.motor_id_spinbox)
+        id_layout.addStretch()
+        layout.addLayout(id_layout)
+
+        # Control mode selection
+        mode_group = QGroupBox("Control Mode")
+        mode_layout = QVBoxLayout()
+
+        self.mode_group = QButtonGroup()
+        self.velocity_mode_radio = QRadioButton("Velocity Control (RPS)")
+        self.position_mode_radio = QRadioButton("Position Control (Count + Rotation)")
+
+        self.mode_group.addButton(self.velocity_mode_radio, 0)
+        self.mode_group.addButton(self.position_mode_radio, 1)
+
+        self.velocity_mode_radio.setChecked(True)  # Default mode
+
+        mode_layout.addWidget(self.velocity_mode_radio)
+        mode_layout.addWidget(self.position_mode_radio)
+        mode_group.setLayout(mode_layout)
+        layout.addWidget(mode_group)
+
+        # Control inputs
+        control_group = QGroupBox("Control Values")
+        control_layout = QFormLayout()
+
+        # Velocity control
+        self.velocity_spinbox = QDoubleSpinBox()
+        self.velocity_spinbox.setRange(-100.0, 100.0)
+        self.velocity_spinbox.setSuffix(" RPS")
+        self.velocity_spinbox.setDecimals(2)
+        control_layout.addRow("Target Velocity:", self.velocity_spinbox)
+
+        # Position control
+        self.count_spinbox = QSpinBox()
+        self.count_spinbox.setRange(-32768, 32767)
+        self.count_spinbox.setSuffix(" counts")
+        control_layout.addRow("Target Count:", self.count_spinbox)
+
+        self.rotation_spinbox = QSpinBox()
+        self.rotation_spinbox.setRange(-32768, 32767)
+        self.rotation_spinbox.setSuffix(" rotations")
+        control_layout.addRow("Target Rotation:", self.rotation_spinbox)
+
+        control_group.setLayout(control_layout)
+        layout.addWidget(control_group)
+
+        # Command buttons
+        button_layout = QHBoxLayout()
+
+        self.send_button = QPushButton("Send Command")
+        self.send_button.clicked.connect(self.send_command)
+        button_layout.addWidget(self.send_button)
+
+        self.stop_button = QPushButton("Stop Motor")
+        self.stop_button.clicked.connect(self.stop_motor)
+        self.stop_button.setStyleSheet("background-color: #ff6b6b; color: white;")
+        button_layout.addWidget(self.stop_button)
+
+        layout.addLayout(button_layout)
+
+        # Status display
+        status_group = QGroupBox("Motor Status")
+        status_layout = QFormLayout()
+
+        self.status_label = QLabel("Not Connected")
+        self.current_velocity_label = QLabel("-- RPS")
+        self.current_position_label = QLabel("-- counts")
+
+        status_layout.addRow("Status:", self.status_label)
+        status_layout.addRow("Current Velocity:", self.current_velocity_label)
+        status_layout.addRow("Current Position:", self.current_position_label)
+
+        status_group.setLayout(status_layout)
+        layout.addWidget(status_group)
+
+        layout.addStretch()
+        self.setLayout(layout)
+
+    def on_motor_id_changed(self, motor_id):
+        """Handle motor ID change"""
+        self.current_motor_id = motor_id
+        logger.info(f"RS485 Motor ID changed to: {motor_id}")
+
+    def send_command(self):
+        """Send RS485 motor control command"""
+        # TODO: Implement when RS485 motor messages are added to stm32_mavlink_msgs
+        logger.warning("RS485 motor control not yet implemented in ROS2 - firmware only")
+        QMessageBox.information(self, "Not Implemented",
+            "RS485 motor control is implemented in H753 firmware but not yet in ROS2.\n"
+            "Motor IDs 30-49 are reserved for RS485 motors (Ikeya MD).")
+
+    def stop_motor(self):
+        """Send stop command to RS485 motor"""
+        # TODO: Implement when RS485 motor messages are added
+        logger.warning("RS485 motor stop not yet implemented")
+
+    def update_status(self, state_msg):
+        """Update status display with received state message"""
+        # TODO: Implement when RS485 motor state messages are added
+        pass
+
+
 class ServoControlWidget(QWidget):
     """Widget for controlling servo motors"""
 
@@ -977,7 +1303,7 @@ class ServoControlWidget(QWidget):
         servo_layout = QHBoxLayout()
         servo_layout.addWidget(QLabel("Servo ID:"))
         self.servo_id_spinbox = QSpinBox()
-        self.servo_id_spinbox.setRange(1, 16)
+        self.servo_id_spinbox.setRange(1, 9)  # Servo ID range: 1-9
         self.servo_id_spinbox.setValue(1)  # Default to servo 1
         self.servo_id_spinbox.valueChanged.connect(self.on_servo_changed)
         servo_layout.addWidget(self.servo_id_spinbox)
@@ -1294,13 +1620,21 @@ class MAVLinkWizardGUI(QMainWindow):
         self.servo_control_widget = ServoControlWidget()
         self.tab_widget.addTab(self.servo_control_widget, "Servo Control")
 
-        # Motor Control tab - will be initialized after ROS setup
+        # RoboMaster Motor Control tab - will be initialized after ROS setup
         self.motor_control_widget = MotorControlWidget()
-        self.tab_widget.addTab(self.motor_control_widget, "Motor Control")
+        self.tab_widget.addTab(self.motor_control_widget, "RoboMaster Control")
 
         # DC Motor Control tab - will be initialized after ROS setup
         self.dcmotor_control_widget = DCMotorControlWidget()
         self.tab_widget.addTab(self.dcmotor_control_widget, "DC Motor Control")
+
+        # RS485 Motor Control tab
+        self.rs485_control_widget = RS485MotorControlWidget()
+        self.tab_widget.addTab(self.rs485_control_widget, "RS485 Motor Control")
+
+        # PID Tuning tab
+        self.pid_tuning_widget = PIDTuningWidget()
+        self.tab_widget.addTab(self.pid_tuning_widget, "PID Tuning")
 
         # Monitoring tab
         self.monitor_widget = MonitorWidget()
