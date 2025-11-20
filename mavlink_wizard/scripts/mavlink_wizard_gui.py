@@ -19,7 +19,7 @@ from PyQt5.QtGui import *
 
 from std_msgs.msg import String
 from sensor_msgs.msg import JointState
-from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, RobomasterMotorCommand, DCMotorState, DCMotorCommand, ServoCommand
+from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, RobomasterMotorCommand, DCMotorState, DCMotorCommand, ServoCommand, RS485MotorState, RS485MotorCommand
 from stm32_mavlink_msgs.srv import SetServoConfig, SetEncoderConfig, SetDCMotorConfig, GetDCMotorConfig
 
 # Import the updated device scanner and parameter manager
@@ -130,6 +130,7 @@ class SignalBridge(QObject):
     encoder_state_signal = pyqtSignal(object)
     motor_state_signal = pyqtSignal(object)
     dcmotor_state_signal = pyqtSignal(object)
+    rs485motor_state_signal = pyqtSignal(object)
 
 class MAVLinkWizardNode(Node):
     """ROS2 node for MAVLink Wizard communication"""
@@ -156,6 +157,8 @@ class MAVLinkWizardNode(Node):
             RobomasterMotorState, '/robomaster/motor_state', self.motor_state_callback, qos_profile)
         self.dcmotor_state_sub = self.create_subscription(
             DCMotorState, '/dcmotor/state', self.dcmotor_state_callback, qos_profile)
+        self.rs485motor_state_sub = self.create_subscription(
+            RS485MotorState, '/rs485motor/state', self.rs485motor_state_callback, qos_profile)
 
         # Service clients for configuration
         self.servo_config_client = self.create_client(SetServoConfig, '/servo/set_config')
@@ -164,6 +167,7 @@ class MAVLinkWizardNode(Node):
         # Publisher for motor commands
         self.motor_command_pub = self.create_publisher(RobomasterMotorCommand, '/robomaster/motor_command', 10)
         self.dcmotor_command_pub = self.create_publisher(DCMotorCommand, '/dcmotor/command', 10)
+        self.rs485motor_command_pub = self.create_publisher(RS485MotorCommand, '/rs485motor/command', 10)
         self.servo_command_pub = self.create_publisher(ServoCommand, '/servo/command', 10)
 
         self.get_logger().info('MAVLink Wizard Node initialized')
@@ -179,6 +183,9 @@ class MAVLinkWizardNode(Node):
 
     def dcmotor_state_callback(self, msg):
         self.signal_bridge.dcmotor_state_signal.emit(msg)
+
+    def rs485motor_state_callback(self, msg):
+        self.signal_bridge.rs485motor_state_signal.emit(msg)
 
 class DeviceTreeWidget(QTreeWidget):
     """Tree widget for displaying discovered devices"""
@@ -1270,21 +1277,65 @@ class RS485MotorControlWidget(QWidget):
 
     def send_command(self):
         """Send RS485 motor control command"""
-        # TODO: Implement when RS485 motor messages are added to stm32_mavlink_msgs
-        logger.warning("RS485 motor control not yet implemented in ROS2 - firmware only")
-        QMessageBox.information(self, "Not Implemented",
-            "RS485 motor control is implemented in H753 firmware but not yet in ROS2.\n"
-            "Motor IDs 30-49 are reserved for RS485 motors (Ikeya MD).")
+        if not self.rs485_command_publisher:
+            QMessageBox.warning(self, "Error", "RS485 motor command publisher not initialized")
+            return
+
+        cmd = RS485MotorCommand()
+        cmd.motor_id = self.current_motor_id
+        cmd.control_mode = self.mode_group.checkedId()  # 0=position, 1=velocity
+        cmd.enabled = True
+
+        if cmd.control_mode == 1:  # Velocity mode
+            cmd.target_velocity = self.velocity_spinbox.value()
+            cmd.target_position = 0.0
+        else:  # Position mode
+            cmd.target_position = float(self.rotation_spinbox.value())
+            cmd.target_velocity = 0.0
+
+        cmd.acceleration = 10.0  # Default acceleration
+
+        self.rs485_command_publisher.publish(cmd)
+        logger.info(f"RS485 motor command sent: ID={cmd.motor_id}, mode={cmd.control_mode}, "
+                   f"velocity={cmd.target_velocity}, position={cmd.target_position}")
 
     def stop_motor(self):
         """Send stop command to RS485 motor"""
-        # TODO: Implement when RS485 motor messages are added
-        logger.warning("RS485 motor stop not yet implemented")
+        if not self.rs485_command_publisher:
+            QMessageBox.warning(self, "Error", "RS485 motor command publisher not initialized")
+            return
+
+        cmd = RS485MotorCommand()
+        cmd.motor_id = self.current_motor_id
+        cmd.control_mode = 1  # Velocity mode
+        cmd.target_velocity = 0.0
+        cmd.target_position = 0.0
+        cmd.acceleration = 100.0  # Fast stop
+        cmd.enabled = False
+
+        self.rs485_command_publisher.publish(cmd)
+        logger.info(f"RS485 motor stop command sent for ID {cmd.motor_id}")
 
     def update_status(self, state_msg):
         """Update status display with received state message"""
-        # TODO: Implement when RS485 motor state messages are added
-        pass
+        if state_msg.motor_id != self.current_motor_id:
+            return
+
+        # Update status text
+        status_map = {
+            0: "OK",
+            1: "ERROR",
+            2: "TIMEOUT",
+            3: "NOT_INITIALIZED"
+        }
+        status_text = status_map.get(state_msg.status, "UNKNOWN")
+        if state_msg.error_code != 0:
+            status_text += f" (Error: {state_msg.error_code})"
+        self.status_label.setText(status_text)
+
+        # Update velocity and position
+        self.current_velocity_label.setText(f"{state_msg.current_velocity_rps:.2f} RPS")
+        self.current_position_label.setText(f"{state_msg.current_position_rotations:.2f} rotations")
 
 
 class ServoControlWidget(QWidget):
@@ -1737,10 +1788,14 @@ class MAVLinkWizardGUI(QMainWindow):
             if hasattr(self.ros_node, 'dcmotor_command_pub'):
                 self.dcmotor_control_widget.dcmotor_command_publisher = self.ros_node.dcmotor_command_pub
 
+            if hasattr(self.ros_node, 'rs485motor_command_pub'):
+                self.rs485_control_widget.rs485_command_publisher = self.ros_node.rs485motor_command_pub
+
             # Connect signal bridge for real-time monitoring
             self.signal_bridge.servo_state_signal.connect(self.on_servo_state_received)
             self.signal_bridge.motor_state_signal.connect(self.on_motor_state_received)
             self.signal_bridge.dcmotor_state_signal.connect(self.on_dcmotor_state_received)
+            self.signal_bridge.rs485motor_state_signal.connect(self.on_rs485motor_state_received)
 
             self.status_bar.showMessage("ROS2 nodes initialized successfully")
 
@@ -1846,6 +1901,36 @@ class MAVLinkWizardGUI(QMainWindow):
 
         # Update DC motor control widget status
         self.dcmotor_control_widget.update_status(msg)
+
+    def on_rs485motor_state_received(self, msg):
+        """Handle RS485 motor state messages for real-time monitoring"""
+        status_map = {
+            0: "OK",
+            1: "ERROR",
+            2: "TIMEOUT",
+            3: "NOT_INITIALIZED"
+        }
+
+        control_mode_map = {
+            0: "POSITION",
+            1: "VELOCITY"
+        }
+
+        data = {
+            'device_id': msg.device_id,
+            'motor_index': msg.motor_index,
+            'position': f"{msg.current_position_rotations:.3f} rotations",
+            'velocity': f"{msg.current_velocity_rps:.2f} RPS",
+            'target_velocity': f"{msg.target_velocity_rps:.2f} RPS",
+            'acceleration': f"{msg.acceleration_rps2:.1f} RPS²",
+            'control_mode': control_mode_map.get(msg.control_mode, "UNKNOWN"),
+            'status': status_map.get(msg.status, "UNKNOWN"),
+            'error_code': msg.error_code
+        }
+        self.monitor_widget.update_device_data('rs485motor', msg.motor_id, data)
+
+        # Update RS485 motor control widget status
+        self.rs485_control_widget.update_status(msg)
 
     def save_configuration(self):
         """Save current device configuration to file"""

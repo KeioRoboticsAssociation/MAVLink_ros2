@@ -11,7 +11,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
-from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState
+from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState, RS485MotorState
 
 
 class MessageType(Enum):
@@ -20,6 +20,7 @@ class MessageType(Enum):
     ENCODER_STATE = "encoder_state"
     MOTOR_STATE = "motor_state"
     DCMOTOR_STATE = "dcmotor_state"
+    RS485MOTOR_STATE = "rs485motor_state"
     HEARTBEAT = "heartbeat"
     PARAMETER = "parameter"
     COMMAND = "command"
@@ -103,6 +104,12 @@ class MessageMonitor(Node):
         self.dcmotor_state_sub = self.create_subscription(
             DCMotorState, '/dcmotor/state',
             lambda msg: self._handle_dcmotor_state(msg),
+            qos_profile
+        )
+
+        self.rs485motor_state_sub = self.create_subscription(
+            RS485MotorState, '/rs485motor/state',
+            lambda msg: self._handle_rs485motor_state(msg),
             qos_profile
         )
 
@@ -285,6 +292,45 @@ class MessageMonitor(Node):
             'control_mode': msg.control_mode,
             'enabled': msg.enabled,
             'status': status_map.get(msg.status, "UNKNOWN")
+        }
+
+        self._process_message(message_type, device_id, data, msg)
+
+    def _handle_rs485motor_state(self, msg):
+        """Handle RS485 motor state message"""
+        if not self.monitoring_enabled:
+            return
+
+        device_id = msg.motor_id
+        message_type = MessageType.RS485MOTOR_STATE
+
+        if self._should_filter_message(message_type, device_id):
+            return
+
+        status_map = {
+            0: "OK",
+            1: "ERROR",
+            2: "TIMEOUT",
+            3: "NOT_INITIALIZED"
+        }
+
+        control_mode_map = {
+            0: "POSITION",
+            1: "VELOCITY"
+        }
+
+        data = {
+            'motor_id': msg.motor_id,
+            'device_id': msg.device_id,
+            'motor_index': msg.motor_index,
+            'position_rotations': msg.current_position_rotations,
+            'velocity_rps': msg.current_velocity_rps,
+            'target_velocity_rps': msg.target_velocity_rps,
+            'acceleration_rps2': msg.acceleration_rps2,
+            'control_mode': control_mode_map.get(msg.control_mode, "UNKNOWN"),
+            'error_code': msg.error_code,
+            'status': status_map.get(msg.status, "UNKNOWN"),
+            'timestamp_ms': msg.timestamp_ms
         }
 
         self._process_message(message_type, device_id, data, msg)

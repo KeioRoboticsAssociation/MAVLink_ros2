@@ -19,6 +19,7 @@
 #include "stm32_mavlink_udp/encoder_interface.hpp"
 #include "stm32_mavlink_udp/robomaster_controller.hpp"
 #include "stm32_mavlink_udp/dcmotor_controller.hpp"
+#include "stm32_mavlink_udp/rs485motor_controller.hpp"
 
 namespace stm32_mavlink_udp {
 
@@ -60,6 +61,7 @@ private:
     std::unique_ptr<stm32_mavlink_udp::EncoderInterface> encoder_interface_;
     std::unique_ptr<stm32_mavlink_udp::RobomasterController> robomaster_controller_;
     std::unique_ptr<stm32_mavlink_udp::DCMotorController> dcmotor_controller_;
+    std::unique_ptr<stm32_mavlink_udp::RS485MotorController> rs485motor_controller_;
 
     // Timers
     rclcpp::TimerBase::SharedPtr heartbeat_timer_;
@@ -99,6 +101,7 @@ private:
     // Custom motor control message handlers
     void handleDCMotorStatus(const mavlink_message_t& msg);
     void handleRobomasterMotorStatus(const mavlink_message_t& msg);
+    void handleRS485MotorStatus(const mavlink_message_t& msg);
 };
 
 } // namespace stm32_mavlink_udp

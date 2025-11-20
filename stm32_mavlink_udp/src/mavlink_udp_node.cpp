@@ -39,6 +39,7 @@ MAVLinkUDPNode::MAVLinkUDPNode()
     encoder_interface_ = std::make_unique<stm32_mavlink_udp::EncoderInterface>(this);
     robomaster_controller_ = std::make_unique<stm32_mavlink_udp::RobomasterController>(this);
     dcmotor_controller_ = std::make_unique<stm32_mavlink_udp::DCMotorController>(this);
+    rs485motor_controller_ = std::make_unique<stm32_mavlink_udp::RS485MotorController>(this);
 
     // Create publishers
     diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticStatus>("diagnostics", 10);
@@ -241,6 +242,10 @@ void MAVLinkUDPNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             handleRobomasterMotorStatus(msg);
             break;
 
+        case MAVLINK_MSG_ID_RS485_MOTOR_STATUS:
+            handleRS485MotorStatus(msg);
+            break;
+
         default:
             break;
     }
@@ -287,9 +292,16 @@ void MAVLinkUDPNode::sendTelemetry() {
         sendMAVLinkMessage(msg);
     }
 
+    // Send RS485 motor commands if any
+    if (rs485motor_controller_->getMotorControlMessage(msg, system_id_, component_id_, target_system_id_)) {
+        RCLCPP_INFO(this->get_logger(), "UDP TX: RS485 motor command, msgid: %d", msg.msgid);
+        sendMAVLinkMessage(msg);
+    }
+
     // Update controllers
     robomaster_controller_->update();
     dcmotor_controller_->update();
+    rs485motor_controller_->update();
 
     publishDiagnostics();
 }
@@ -387,6 +399,21 @@ void MAVLinkUDPNode::handleRobomasterMotorStatus(const mavlink_message_t& msg) {
 
     // Forward to RoboMaster controller
     robomaster_controller_->handleMotorStatus(msg);
+}
+
+void MAVLinkUDPNode::handleRS485MotorStatus(const mavlink_message_t& msg) {
+    // Decode the RS485 motor status message
+    mavlink_rs485_motor_status_t rs485_status;
+    mavlink_msg_rs485_motor_status_decode(&msg, &rs485_status);
+
+    RCLCPP_DEBUG(this->get_logger(),
+        "RS485 Motor %d: device_id=%d, motor_index=%d, pos=%.2f rot, vel=%.2f rps, mode=%d, status=%d",
+        rs485_status.motor_id, rs485_status.device_id, rs485_status.motor_index,
+        rs485_status.current_position_rotations, rs485_status.current_velocity_rps,
+        rs485_status.control_mode, rs485_status.status);
+
+    // Forward to RS485 motor controller
+    rs485motor_controller_->handleMotorStatus(msg);
 }
 
 } // namespace stm32_mavlink_udp

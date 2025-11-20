@@ -24,6 +24,9 @@ set(msg_files
   "msg/DCMotorCommand.msg"
   "msg/DCMotorState.msg"
   "msg/DCMotorConfig.msg"
+  "msg/RS485MotorCommand.msg"
+  "msg/RS485MotorState.msg"
+  "msg/RS485MotorConfig.msg"
 )
 
 # Service files

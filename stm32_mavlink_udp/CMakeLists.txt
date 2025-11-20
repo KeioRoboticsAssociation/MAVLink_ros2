@@ -28,6 +28,7 @@ add_executable(mavlink_udp_node
   src/encoder_interface.cpp
   src/robomaster_controller.cpp
   src/dcmotor_controller.cpp
+  src/rs485motor_controller.cpp
 )
 
 # Link dependencies

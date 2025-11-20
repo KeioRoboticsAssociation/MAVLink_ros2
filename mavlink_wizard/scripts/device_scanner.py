@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
-from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState
+from stm32_mavlink_msgs.msg import ServoState, EncoderState, RobomasterMotorState, DCMotorState, RS485MotorState
 
 
 @dataclass
@@ -68,6 +68,13 @@ class DeviceScanner(Node):
             DCMotorState,
             '/dcmotor/state',
             self.dcmotor_state_callback,
+            qos_profile
+        )
+
+        self.rs485motor_state_sub = self.create_subscription(
+            RS485MotorState,
+            '/rs485motor/state',
+            self.rs485motor_state_callback,
             qos_profile
         )
 
@@ -215,6 +222,40 @@ class DeviceScanner(Node):
                 self.on_device_found(device)
 
             self.get_logger().info(f'Discovered DC motor device with ID {msg.motor_id}')
+        else:
+            # Update existing device
+            device = self.discovered_devices[device_key]
+            device.last_seen = current_time
+            device.status = status
+
+    def rs485motor_state_callback(self, msg: RS485MotorState):
+        """Handle RS485 motor state messages to discover RS485 motor devices"""
+        device_key = f"rs485motor_{msg.motor_id}"
+        current_time = time.time()
+
+        status_map = {
+            0: "OK",
+            1: "ERROR",
+            2: "TIMEOUT",
+            3: "NOT_INITIALIZED"
+        }
+
+        status = status_map.get(msg.status, "UNKNOWN")
+
+        if device_key not in self.discovered_devices:
+            # New device discovered
+            device = MAVLinkDevice(
+                device_id=msg.motor_id,
+                device_type="rs485motor",
+                last_seen=current_time,
+                status=status
+            )
+            self.discovered_devices[device_key] = device
+
+            if self.on_device_found:
+                self.on_device_found(device)
+
+            self.get_logger().info(f'Discovered RS485 motor device with ID {msg.motor_id} (device_id={msg.device_id}, motor_index={msg.motor_index})')
         else:
             # Update existing device
             device = self.discovered_devices[device_key]
