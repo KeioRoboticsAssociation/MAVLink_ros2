@@ -50,15 +50,15 @@ void EncoderInterface::handleAttitude(const mavlink_attitude_t& attitude) {
 
 void EncoderInterface::handleParamValue(const mavlink_param_value_t& param_value) {
     std::lock_guard<std::mutex> lock(encoder_mutex_);
-    
+
     // Parse encoder configuration parameters
     // Format: ENCx_PARAM where x is encoder ID
     std::string param_id(param_value.param_id);
-    
+
     if (param_id.substr(0, 3) == "ENC") {
         // Extract encoder ID
         int encoder_id = param_id[3] - '0';
-        
+
         if (encoder_id >= 1 && encoder_id <= encoder_states_.size()) {
             // Handle different parameter types
             if (param_id.find("_CPR") != std::string::npos) {
@@ -75,6 +75,34 @@ void EncoderInterface::handleParamValue(const mavlink_param_value_t& param_value
             }
         }
     }
+}
+
+void EncoderInterface::handleEncoderStatus(const mavlink_encoder_status_t& encoder_status) {
+    std::lock_guard<std::mutex> lock(encoder_mutex_);
+
+    // Encoder IDs are 1-based, but array is 0-based
+    size_t encoder_index = encoder_status.encoder_id - 1;
+
+    if (encoder_index < encoder_states_.size()) {
+        encoder_states_[encoder_index].position = encoder_status.raw_count;
+        encoder_states_[encoder_index].angle_rad = encoder_status.position_rad;
+        encoder_states_[encoder_index].angle_deg = encoder_status.position_rad * 180.0f / M_PI;
+        encoder_states_[encoder_index].status = encoder_status.status;
+
+        // Calculate revolutions from raw count and resolution
+        if (encoder_status.resolution > 0) {
+            encoder_states_[encoder_index].revolutions =
+                static_cast<uint32_t>(std::abs(encoder_status.raw_count) / encoder_status.resolution);
+        }
+
+        RCLCPP_DEBUG(node_->get_logger(),
+                    "Encoder %d: count=%d, pos=%.3f rad, vel=%.3f rad/s, status=%d",
+                    encoder_status.encoder_id, encoder_status.raw_count,
+                    encoder_status.position_rad, encoder_status.velocity_rad_s,
+                    encoder_status.status);
+    }
+
+    publishEncoderStates();
 }
 
 bool EncoderInterface::getEncoderConfigCommand(mavlink_message_t& msg, uint8_t system_id,

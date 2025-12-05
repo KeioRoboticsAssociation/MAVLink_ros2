@@ -1793,6 +1793,7 @@ class MAVLinkWizardGUI(QMainWindow):
 
             # Connect signal bridge for real-time monitoring
             self.signal_bridge.servo_state_signal.connect(self.on_servo_state_received)
+            self.signal_bridge.encoder_state_signal.connect(self.on_encoder_state_received)
             self.signal_bridge.motor_state_signal.connect(self.on_motor_state_received)
             self.signal_bridge.dcmotor_state_signal.connect(self.on_dcmotor_state_received)
             self.signal_bridge.rs485motor_state_signal.connect(self.on_rs485motor_state_received)
@@ -1866,6 +1867,25 @@ class MAVLinkWizardGUI(QMainWindow):
 
         # Update servo control widget status
         self.servo_control_widget.update_status(msg)
+
+    def on_encoder_state_received(self, msg):
+        """Handle encoder state messages for real-time monitoring"""
+        status_map = {
+            0: "OK",
+            1: "ERROR",
+            2: "NOT_INITIALIZED"
+        }
+
+        data = {
+            'position': f"{msg.position} counts",
+            'angle': f"{msg.angle_deg:.2f}° ({msg.angle_rad:.3f} rad)",
+            'revolutions': msg.revolutions,
+            'velocity': 'N/A',  # Encoder velocity not in current message
+            'z_detected': 'Yes' if msg.z_detected else 'No',
+            'status': status_map.get(msg.status, "UNKNOWN"),
+            'error_count': msg.error_count
+        }
+        self.monitor_widget.update_device_data('encoder', msg.encoder_id, data)
 
     def on_motor_state_received(self, msg):
         """Handle motor state messages for real-time monitoring"""

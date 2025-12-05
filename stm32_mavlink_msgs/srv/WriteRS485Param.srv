@@ -1,0 +1,12 @@
+# Write RS485 Parameter Service
+# Synchronous request to write data to RS485 motor control table
+
+uint8 motor_id       # Motor ID (30-49 for RS485 motors)
+uint16 address       # Control table address to write
+uint8 length         # Number of bytes to write (1-64)
+uint8[64] data       # Data to write
+---
+bool success         # True if write was successful
+uint8 status         # Status code (0=success, see error_code_t)
+uint8 rs485_error    # RS485 protocol error code (0=no error)
+string message       # Human-readable status message

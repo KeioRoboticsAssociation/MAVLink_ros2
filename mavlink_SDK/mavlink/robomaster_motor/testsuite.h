@@ -420,6 +420,382 @@ static void mavlink_test_rs485_motor_status(uint8_t system_id, uint8_t component
 #endif
 }
 
+static void mavlink_test_encoder_status(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_ENCODER_STATUS >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_encoder_status_t packet_in = {
+        963497464,45.0,73.0,963498088,129.0,963498504,77,144,211
+    };
+    mavlink_encoder_status_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.raw_count = packet_in.raw_count;
+        packet1.position_rad = packet_in.position_rad;
+        packet1.velocity_rad_s = packet_in.velocity_rad_s;
+        packet1.resolution = packet_in.resolution;
+        packet1.gear_ratio = packet_in.gear_ratio;
+        packet1.timestamp_ms = packet_in.timestamp_ms;
+        packet1.encoder_id = packet_in.encoder_id;
+        packet1.encoder_type = packet_in.encoder_type;
+        packet1.status = packet_in.status;
+        
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_ENCODER_STATUS_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_ENCODER_STATUS_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_encoder_status_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_encoder_status_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_encoder_status_pack(system_id, component_id, &msg , packet1.encoder_id , packet1.encoder_type , packet1.status , packet1.raw_count , packet1.position_rad , packet1.velocity_rad_s , packet1.resolution , packet1.gear_ratio , packet1.timestamp_ms );
+    mavlink_msg_encoder_status_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_encoder_status_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.encoder_id , packet1.encoder_type , packet1.status , packet1.raw_count , packet1.position_rad , packet1.velocity_rad_s , packet1.resolution , packet1.gear_ratio , packet1.timestamp_ms );
+    mavlink_msg_encoder_status_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_encoder_status_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_encoder_status_send(MAVLINK_COMM_1 , packet1.encoder_id , packet1.encoder_type , packet1.status , packet1.raw_count , packet1.position_rad , packet1.velocity_rad_s , packet1.resolution , packet1.gear_ratio , packet1.timestamp_ms );
+    mavlink_msg_encoder_status_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("ENCODER_STATUS") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_ENCODER_STATUS) != NULL);
+#endif
+}
+
+static void mavlink_test_rs485_read_request(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_RS485_READ_REQUEST >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_rs485_read_request_t packet_in = {
+        17235,139,206
+    };
+    mavlink_rs485_read_request_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.address = packet_in.address;
+        packet1.motor_id = packet_in.motor_id;
+        packet1.length = packet_in.length;
+        
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_RS485_READ_REQUEST_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_RS485_READ_REQUEST_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_request_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_rs485_read_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_request_pack(system_id, component_id, &msg , packet1.motor_id , packet1.address , packet1.length );
+    mavlink_msg_rs485_read_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_request_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.motor_id , packet1.address , packet1.length );
+    mavlink_msg_rs485_read_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_rs485_read_request_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_request_send(MAVLINK_COMM_1 , packet1.motor_id , packet1.address , packet1.length );
+    mavlink_msg_rs485_read_request_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("RS485_READ_REQUEST") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_RS485_READ_REQUEST) != NULL);
+#endif
+}
+
+static void mavlink_test_rs485_read_response(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_RS485_READ_RESPONSE >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_rs485_read_response_t packet_in = {
+        17235,139,206,{ 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 },209,20
+    };
+    mavlink_rs485_read_response_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.address = packet_in.address;
+        packet1.motor_id = packet_in.motor_id;
+        packet1.length = packet_in.length;
+        packet1.status = packet_in.status;
+        packet1.rs485_error = packet_in.rs485_error;
+        
+        mav_array_memcpy(packet1.data, packet_in.data, sizeof(uint8_t)*64);
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_RS485_READ_RESPONSE_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_RS485_READ_RESPONSE_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_response_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_rs485_read_response_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_response_pack(system_id, component_id, &msg , packet1.motor_id , packet1.address , packet1.length , packet1.data , packet1.status , packet1.rs485_error );
+    mavlink_msg_rs485_read_response_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_response_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.motor_id , packet1.address , packet1.length , packet1.data , packet1.status , packet1.rs485_error );
+    mavlink_msg_rs485_read_response_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_rs485_read_response_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_read_response_send(MAVLINK_COMM_1 , packet1.motor_id , packet1.address , packet1.length , packet1.data , packet1.status , packet1.rs485_error );
+    mavlink_msg_rs485_read_response_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("RS485_READ_RESPONSE") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_RS485_READ_RESPONSE) != NULL);
+#endif
+}
+
+static void mavlink_test_rs485_write_request(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_RS485_WRITE_REQUEST >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_rs485_write_request_t packet_in = {
+        17235,139,206,{ 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 }
+    };
+    mavlink_rs485_write_request_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.address = packet_in.address;
+        packet1.motor_id = packet_in.motor_id;
+        packet1.length = packet_in.length;
+        
+        mav_array_memcpy(packet1.data, packet_in.data, sizeof(uint8_t)*64);
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_RS485_WRITE_REQUEST_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_RS485_WRITE_REQUEST_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_request_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_rs485_write_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_request_pack(system_id, component_id, &msg , packet1.motor_id , packet1.address , packet1.length , packet1.data );
+    mavlink_msg_rs485_write_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_request_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.motor_id , packet1.address , packet1.length , packet1.data );
+    mavlink_msg_rs485_write_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_rs485_write_request_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_request_send(MAVLINK_COMM_1 , packet1.motor_id , packet1.address , packet1.length , packet1.data );
+    mavlink_msg_rs485_write_request_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("RS485_WRITE_REQUEST") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_RS485_WRITE_REQUEST) != NULL);
+#endif
+}
+
+static void mavlink_test_rs485_write_response(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_RS485_WRITE_RESPONSE >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_rs485_write_response_t packet_in = {
+        17235,139,206,17,84
+    };
+    mavlink_rs485_write_response_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.address = packet_in.address;
+        packet1.motor_id = packet_in.motor_id;
+        packet1.length = packet_in.length;
+        packet1.status = packet_in.status;
+        packet1.rs485_error = packet_in.rs485_error;
+        
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_RS485_WRITE_RESPONSE_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_RS485_WRITE_RESPONSE_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_response_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_rs485_write_response_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_response_pack(system_id, component_id, &msg , packet1.motor_id , packet1.address , packet1.length , packet1.status , packet1.rs485_error );
+    mavlink_msg_rs485_write_response_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_response_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.motor_id , packet1.address , packet1.length , packet1.status , packet1.rs485_error );
+    mavlink_msg_rs485_write_response_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_rs485_write_response_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_write_response_send(MAVLINK_COMM_1 , packet1.motor_id , packet1.address , packet1.length , packet1.status , packet1.rs485_error );
+    mavlink_msg_rs485_write_response_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("RS485_WRITE_RESPONSE") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_RS485_WRITE_RESPONSE) != NULL);
+#endif
+}
+
+static void mavlink_test_rs485_flash_save_request(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
+{
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+    mavlink_status_t *status = mavlink_get_channel_status(MAVLINK_COMM_0);
+        if ((status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) && MAVLINK_MSG_ID_RS485_FLASH_SAVE_REQUEST >= 256) {
+            return;
+        }
+#endif
+    mavlink_message_t msg;
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        uint16_t i;
+    mavlink_rs485_flash_save_request_t packet_in = {
+        5
+    };
+    mavlink_rs485_flash_save_request_t packet1, packet2;
+        memset(&packet1, 0, sizeof(packet1));
+        packet1.motor_id = packet_in.motor_id;
+        
+        
+#ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
+        if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
+           // cope with extensions
+           memset(MAVLINK_MSG_ID_RS485_FLASH_SAVE_REQUEST_MIN_LEN + (char *)&packet1, 0, sizeof(packet1)-MAVLINK_MSG_ID_RS485_FLASH_SAVE_REQUEST_MIN_LEN);
+        }
+#endif
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_flash_save_request_encode(system_id, component_id, &msg, &packet1);
+    mavlink_msg_rs485_flash_save_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_flash_save_request_pack(system_id, component_id, &msg , packet1.motor_id );
+    mavlink_msg_rs485_flash_save_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_flash_save_request_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.motor_id );
+    mavlink_msg_rs485_flash_save_request_decode(&msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+        memset(&packet2, 0, sizeof(packet2));
+        mavlink_msg_to_send_buffer(buffer, &msg);
+        for (i=0; i<mavlink_msg_get_send_buffer_length(&msg); i++) {
+            comm_send_ch(MAVLINK_COMM_0, buffer[i]);
+        }
+    mavlink_msg_rs485_flash_save_request_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+        
+        memset(&packet2, 0, sizeof(packet2));
+    mavlink_msg_rs485_flash_save_request_send(MAVLINK_COMM_1 , packet1.motor_id );
+    mavlink_msg_rs485_flash_save_request_decode(last_msg, &packet2);
+        MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
+
+#ifdef MAVLINK_HAVE_GET_MESSAGE_INFO
+    MAVLINK_ASSERT(mavlink_get_message_info_by_name("RS485_FLASH_SAVE_REQUEST") != NULL);
+    MAVLINK_ASSERT(mavlink_get_message_info_by_id(MAVLINK_MSG_ID_RS485_FLASH_SAVE_REQUEST) != NULL);
+#endif
+}
+
 static void mavlink_test_robomaster_motor(uint8_t system_id, uint8_t component_id, mavlink_message_t *last_msg)
 {
     mavlink_test_robomaster_motor_control(system_id, component_id, last_msg);
@@ -428,6 +804,12 @@ static void mavlink_test_robomaster_motor(uint8_t system_id, uint8_t component_i
     mavlink_test_dc_motor_status(system_id, component_id, last_msg);
     mavlink_test_motor_command(system_id, component_id, last_msg);
     mavlink_test_rs485_motor_status(system_id, component_id, last_msg);
+    mavlink_test_encoder_status(system_id, component_id, last_msg);
+    mavlink_test_rs485_read_request(system_id, component_id, last_msg);
+    mavlink_test_rs485_read_response(system_id, component_id, last_msg);
+    mavlink_test_rs485_write_request(system_id, component_id, last_msg);
+    mavlink_test_rs485_write_response(system_id, component_id, last_msg);
+    mavlink_test_rs485_flash_save_request(system_id, component_id, last_msg);
 }
 
 #ifdef __cplusplus

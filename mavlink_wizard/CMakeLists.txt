@@ -23,6 +23,8 @@ install(PROGRAMS
   scripts/device_scanner.py
   scripts/parameter_manager.py
   scripts/message_monitor.py
+  scripts/rs485_param_reader.py
+  scripts/rs485_param_writer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

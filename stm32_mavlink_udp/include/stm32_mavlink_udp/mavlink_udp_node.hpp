@@ -102,6 +102,9 @@ private:
     void handleDCMotorStatus(const mavlink_message_t& msg);
     void handleRobomasterMotorStatus(const mavlink_message_t& msg);
     void handleRS485MotorStatus(const mavlink_message_t& msg);
+    void handleRS485ReadResponse(const mavlink_message_t& msg);
+    void handleRS485WriteResponse(const mavlink_message_t& msg);
+    void handleEncoderStatus(const mavlink_message_t& msg);
 };
 
 } // namespace stm32_mavlink_udp

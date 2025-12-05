@@ -8,7 +8,7 @@
 #include "stm32_mavlink_msgs/msg/encoder_config.hpp"
 #include "stm32_mavlink_msgs/srv/set_encoder_config.hpp"
 #include "std_srvs/srv/trigger.hpp"
-#include "common/mavlink.h"
+#include "robomaster_motor/mavlink.h"
 
 namespace stm32_mavlink_udp {
 
@@ -24,6 +24,7 @@ public:
     // MAVLink message handlers
     void handleAttitude(const mavlink_attitude_t& attitude);
     void handleParamValue(const mavlink_param_value_t& param_value);
+    void handleEncoderStatus(const mavlink_encoder_status_t& encoder_status);
     
     // Get MAVLink messages to send
     bool getEncoderConfigCommand(mavlink_message_t& msg, uint8_t system_id, uint8_t component_id, 

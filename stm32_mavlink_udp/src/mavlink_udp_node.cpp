@@ -246,6 +246,18 @@ void MAVLinkUDPNode::handleMAVLinkMessage(const mavlink_message_t& msg) {
             handleRS485MotorStatus(msg);
             break;
 
+        case MAVLINK_MSG_ID_RS485_READ_RESPONSE:
+            handleRS485ReadResponse(msg);
+            break;
+
+        case MAVLINK_MSG_ID_RS485_WRITE_RESPONSE:
+            handleRS485WriteResponse(msg);
+            break;
+
+        case MAVLINK_MSG_ID_ENCODER_STATUS:
+            handleEncoderStatus(msg);
+            break;
+
         default:
             break;
     }
@@ -295,6 +307,24 @@ void MAVLinkUDPNode::sendTelemetry() {
     // Send RS485 motor commands if any
     if (rs485motor_controller_->getMotorControlMessage(msg, system_id_, component_id_, target_system_id_)) {
         RCLCPP_INFO(this->get_logger(), "UDP TX: RS485 motor command, msgid: %d", msg.msgid);
+        sendMAVLinkMessage(msg);
+    }
+
+    // Send RS485 read requests if any
+    if (rs485motor_controller_->getReadRequestMessage(msg, system_id_, component_id_, target_system_id_)) {
+        RCLCPP_DEBUG(this->get_logger(), "UDP TX: RS485 read request, msgid: %d", msg.msgid);
+        sendMAVLinkMessage(msg);
+    }
+
+    // Send RS485 write requests if any
+    if (rs485motor_controller_->getWriteRequestMessage(msg, system_id_, component_id_, target_system_id_)) {
+        RCLCPP_DEBUG(this->get_logger(), "UDP TX: RS485 write request, msgid: %d", msg.msgid);
+        sendMAVLinkMessage(msg);
+    }
+
+    // Send RS485 flash save requests if any
+    if (rs485motor_controller_->getFlashSaveRequestMessage(msg, system_id_, component_id_, target_system_id_)) {
+        RCLCPP_DEBUG(this->get_logger(), "UDP TX: RS485 flash save request, msgid: %d", msg.msgid);
         sendMAVLinkMessage(msg);
     }
 
@@ -414,6 +444,49 @@ void MAVLinkUDPNode::handleRS485MotorStatus(const mavlink_message_t& msg) {
 
     // Forward to RS485 motor controller
     rs485motor_controller_->handleMotorStatus(msg);
+}
+
+void MAVLinkUDPNode::handleRS485ReadResponse(const mavlink_message_t& msg) {
+    // Decode the RS485 read response message
+    mavlink_rs485_read_response_t read_response;
+    mavlink_msg_rs485_read_response_decode(&msg, &read_response);
+
+    RCLCPP_DEBUG(this->get_logger(),
+        "RS485 Read Response: motor_id=%d, address=0x%04X, length=%d, status=%d, rs485_error=%d",
+        read_response.motor_id, read_response.address, read_response.length,
+        read_response.status, read_response.rs485_error);
+
+    // Forward to RS485 motor controller
+    rs485motor_controller_->handleReadResponse(msg);
+}
+
+void MAVLinkUDPNode::handleRS485WriteResponse(const mavlink_message_t& msg) {
+    // Decode the RS485 write response message
+    mavlink_rs485_write_response_t write_response;
+    mavlink_msg_rs485_write_response_decode(&msg, &write_response);
+
+    RCLCPP_DEBUG(this->get_logger(),
+        "RS485 Write Response: motor_id=%d, address=0x%04X, length=%d, status=%d, rs485_error=%d",
+        write_response.motor_id, write_response.address, write_response.length,
+        write_response.status, write_response.rs485_error);
+
+    // Forward to RS485 motor controller
+    rs485motor_controller_->handleWriteResponse(msg);
+}
+
+void MAVLinkUDPNode::handleEncoderStatus(const mavlink_message_t& msg) {
+    // Decode the encoder status message
+    mavlink_encoder_status_t encoder_status;
+    mavlink_msg_encoder_status_decode(&msg, &encoder_status);
+
+    RCLCPP_DEBUG(this->get_logger(),
+        "Encoder %d: count=%d, pos=%.3f rad, vel=%.3f rad/s, type=%d, status=%d",
+        encoder_status.encoder_id, encoder_status.raw_count,
+        encoder_status.position_rad, encoder_status.velocity_rad_s,
+        encoder_status.encoder_type, encoder_status.status);
+
+    // Forward to encoder interface
+    encoder_interface_->handleEncoderStatus(encoder_status);
 }
 
 } // namespace stm32_mavlink_udp

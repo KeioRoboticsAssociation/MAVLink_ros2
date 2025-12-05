@@ -1,0 +1,9 @@
+# Flash Save RS485 Service
+# Synchronous request to save RS485 motor configuration to flash memory
+
+uint8 motor_id       # Motor ID (30-49 for RS485 motors)
+---
+bool success         # True if flash save was successful
+uint8 result         # MAV_RESULT code (0=accepted, 4=failed)
+uint8 error_code     # Error code from result_param2
+string message       # Human-readable status message

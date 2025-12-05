@@ -27,6 +27,11 @@ set(msg_files
   "msg/RS485MotorCommand.msg"
   "msg/RS485MotorState.msg"
   "msg/RS485MotorConfig.msg"
+  "msg/RS485ReadRequest.msg"
+  "msg/RS485ReadResponse.msg"
+  "msg/RS485WriteRequest.msg"
+  "msg/RS485WriteResponse.msg"
+  "msg/RS485FlashSaveRequest.msg"
 )
 
 # Service files
@@ -37,6 +42,9 @@ set(srv_files
   "srv/GetRobomasterMotorConfig.srv"
   "srv/SetDCMotorConfig.srv"
   "srv/GetDCMotorConfig.srv"
+  "srv/ReadRS485Param.srv"
+  "srv/WriteRS485Param.srv"
+  "srv/FlashSaveRS485.srv"
 )
 
 # Generate interfaces
