@@ -1,0 +1,46 @@
+# RS485 Motor Interface Configuration
+# This file defines motor-specific parameters for the rs485_motor_interface node
+#
+# Protocol v2.2 Motor Addressing:
+# - Each RS485 device (board) controls up to 3 motors
+# - device_id: RS485 device ID (1-15, set via DIP switches on the board)
+# - motor_index: Motor index on that device (0-2)
+# - mavlink_id: Internal ROS2 motor ID used for topic communication (30-49)
+#
+# Example: Device 1, Motor 0 -> mavlink_id 30
+#          Device 1, Motor 1 -> mavlink_id 31
+#          Device 1, Motor 2 -> mavlink_id 32
+#          Device 2, Motor 0 -> mavlink_id 33, etc.
+
+rs485_motor_node:
+  ros__parameters:
+    # Polling configuration
+    polling_rate_hz: 10.0    # State polling rate (Hz)
+    retry_count: 3           # Retry count for failed operations
+    timeout_ms: 100          # Timeout for RS485 operations (ms)
+
+    # Motor configurations
+    # Each motor is defined by device_id, motor_index, and mavlink_id mapping
+    #
+    # mavlink_id: ROS2 topic motor ID (used in /dcmotor/tx commands)
+    # device_id: Physical RS485 device ID (1-15)
+    # motor_index: Motor index on device (1-3)
+    # protocol_type: Communication protocol ("ikeya_md" for v2.2)
+
+    mavlink_ids: [30, 31, 32]                    # ROS2 motor IDs
+    device_ids: [1, 1, 1]                        # RS485 device IDs
+    motor_indices: [1, 2, 3]                     # Motor indices (1-3 per device)
+    protocol_types: ["ikeya_md", "ikeya_md", "ikeya_md"]
+
+# Example configuration for multiple devices:
+#
+# Device 1 with 3 motors, Device 2 with 2 motors:
+# mavlink_ids: [30, 31, 32, 33, 34]
+# device_ids: [1, 1, 1, 2, 2]
+# motor_indices: [0, 1, 2, 0, 1]
+# protocol_types: ["ikeya_md", "ikeya_md", "ikeya_md", "ikeya_md", "ikeya_md"]
+#
+# Usage:
+# ros2 topic pub /dcmotor/tx stm32_mavlink_msgs/msg/DCMotorCommand \
+#   "{motor_id: 30, control_mode: 0, target_value: 10.0, enabled: true}" --once
+# -> This will control Device 1, Motor 0
